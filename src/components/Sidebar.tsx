@@ -15,31 +15,18 @@ const menuItems: MenuItem[] = [
     label: 'Dashboard',
     icon: 'grid',
   },
+  { id: 'levels', label: 'Levels', icon: 'layers' },
+  { id: 'users', label: 'Users', icon: 'users' },
+  { id: 'login-activities', label: 'Login Activities', icon: 'chart' },
   {
-    id: 'authentication',
-    label: 'Authentication and A...',
-    icon: 'arrow-right',
-  },
-  {
-    id: 'referral-system',
-    label: 'Referral_System',
-    icon: 'arrow-right',
-    children: [
-      { id: 'levels', label: 'Levels', icon: 'layers' },
-      { id: 'users', label: 'Users', icon: 'users' },
-      { id: 'records', label: 'Records', icon: 'list' },
-      { id: 'reviews', label: 'Reviews', icon: 'comments' },
-      { id: 'level-assignments', label: 'Level Assignments', icon: 'handshake' },
-      { id: 'level-upgrades', label: 'Level Upgrades', icon: 'arrow-up' },
-      { id: 'login-activities', label: 'Login Activities', icon: 'chart' },
-      { id: 'referral-trackings', label: 'Referral Trackings', icon: 'circle' },
-      { id: 'user-products', label: 'User Products', icon: 'circle' },
-    ],
+    id: 'products',
+    label: 'Products',
+    icon: 'package',
   },
   {
     id: 'transactions',
     label: 'Transactions',
-    icon: 'arrow-right',
+    icon: 'transaction',
   },
 ];
 
@@ -105,6 +92,16 @@ const getIcon = (iconName: string) => {
         <circle cx="12" cy="12" r="8" />
       </svg>
     ),
+    package: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    ),
+    transaction: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+      </svg>
+    ),
   };
   return icons[iconName] || null;
 };
@@ -112,7 +109,7 @@ const getIcon = (iconName: string) => {
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['referral-system']);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const toggleExpand = (itemId: string) => {
     setExpandedItems((prev) =>
@@ -128,6 +125,8 @@ function Sidebar() {
       users: '/dashboard/users',
       'login-activities': '/dashboard/login-activities',
       levels: '/dashboard/levels',
+      products: '/dashboard/products',
+      transactions: '/dashboard/transactions',
     };
     return routes[itemId] || '#';
   };

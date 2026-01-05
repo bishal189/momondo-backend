@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import LoginActivities from './pages/LoginActivities';
 import Levels from './pages/Levels';
+import Products from './pages/Products';
+import Transactions from './pages/Transactions';
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="login-activities" element={<LoginActivities />} />
           <Route path="levels" element={<Levels />} />
+          <Route path="products" element={<Products />} />
+          <Route path="transactions" element={<Transactions />} />
         </Route>
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>

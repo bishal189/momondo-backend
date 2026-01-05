@@ -7,6 +7,7 @@ import LoginActivities from './pages/LoginActivities';
 import Levels from './pages/Levels';
 import Products from './pages/Products';
 import Transactions from './pages/Transactions';
+import SetupOrders from './pages/SetupOrders';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
+          <Route path="users/:userId/setup-orders" element={<SetupOrders />} />
           <Route path="login-activities" element={<LoginActivities />} />
           <Route path="levels" element={<Levels />} />
           <Route path="products" element={<Products />} />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: number;
@@ -93,6 +94,7 @@ const mockUsers: User[] = [
 ];
 
 function Users() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -183,7 +185,7 @@ function Users() {
   };
 
   const handleSetupOrders = (userId: number) => {
-    console.log('Setup Orders for user:', userId);
+    navigate(`/dashboard/users/${userId}/setup-orders`);
   };
 
   const handleResetQty = (userId: number) => {

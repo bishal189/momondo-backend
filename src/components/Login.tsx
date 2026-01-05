@@ -59,7 +59,7 @@ function Login() {
               />
             </div>
             
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-sm">
               <label className="flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -67,12 +67,6 @@ function Login() {
                 />
                 <span className="ml-2 text-gray-600 dark:text-gray-400">Remember me</span>
               </label>
-              <a
-                href="#"
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
-              >
-                Forgot password?
-              </a>
             </div>
             
             <button 
@@ -82,18 +76,6 @@ function Login() {
               Sign In
             </button>
           </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Don't have an account?{' '}
-              <a
-                href="#"
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold transition-colors"
-              >
-                Sign up
-              </a>
-            </p>
-          </div>
         </div>
       </div>
     </div>

@@ -1,8 +1,11 @@
 import Login from './components/Login'
-import './App.css'
 
 function App() {
-  return <Login />
+  return (
+    <div className="w-full h-full">
+      <Login />
+    </div>
+  )
 }
 
 export default App

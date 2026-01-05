@@ -90,6 +90,16 @@ function Levels() {
   const [formData, setFormData] = useState<Partial<Level>>({});
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addFormData, setAddFormData] = useState<Partial<Level>>({
+    levelNumber: 1,
+    levelName: '',
+    requiredPoints: 0,
+    commissionRate: 0,
+    minimumOrders: 0,
+    benefits: '',
+    status: 'Active',
+  });
   const itemsPerPage = 10;
 
   const filteredLevels = levels.filter(
@@ -197,12 +207,74 @@ function Levels() {
     console.log('Level deleted:', levelToDelete);
   };
 
+  const handleAddNew = () => {
+    setAddFormData({
+      levelNumber: levels.length + 1,
+      levelName: '',
+      requiredPoints: 0,
+      commissionRate: 0,
+      minimumOrders: 0,
+      benefits: '',
+      status: 'Active',
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false);
+    setAddFormData({
+      levelNumber: levels.length + 1,
+      levelName: '',
+      requiredPoints: 0,
+      commissionRate: 0,
+      minimumOrders: 0,
+      benefits: '',
+      status: 'Active',
+    });
+  };
+
+  const handleSaveNew = () => {
+    const newLevel: Level = {
+      id: Math.max(...levels.map((l) => l.id)) + 1,
+      levelNumber: addFormData.levelNumber || 1,
+      levelName: addFormData.levelName || '',
+      requiredPoints: addFormData.requiredPoints || 0,
+      commissionRate: addFormData.commissionRate || 0,
+      minimumOrders: addFormData.minimumOrders || 0,
+      benefits: addFormData.benefits || '',
+      status: addFormData.status || 'Active',
+      createdAt: new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
+    };
+
+    setLevels([...levels, newLevel]);
+    handleCloseAddModal();
+    console.log('New level created:', newLevel);
+  };
+
+  const handleAddInputChange = (field: keyof Level, value: string | number) => {
+    setAddFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   return (
     <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="max-w-full mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Levels</h1>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+          <button
+            onClick={handleAddNew}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
             Add New Level
           </button>
         </div>
@@ -534,6 +606,159 @@ function Levels() {
                   Delete Level
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Add New Level
+                </h2>
+                <button
+                  onClick={handleCloseAddModal}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveNew();
+                }}
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Level Number
+                    </label>
+                    <input
+                      type="number"
+                      value={addFormData.levelNumber || ''}
+                      onChange={(e) => handleAddInputChange('levelNumber', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      min="1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Level Name
+                    </label>
+                    <input
+                      type="text"
+                      value={addFormData.levelName || ''}
+                      onChange={(e) => handleAddInputChange('levelName', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      placeholder="e.g., Bronze, Silver, Gold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Required Points
+                    </label>
+                    <input
+                      type="number"
+                      value={addFormData.requiredPoints || ''}
+                      onChange={(e) => handleAddInputChange('requiredPoints', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Commission Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={addFormData.commissionRate || ''}
+                      onChange={(e) => handleAddInputChange('commissionRate', parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Minimum Orders
+                    </label>
+                    <input
+                      type="number"
+                      value={addFormData.minimumOrders || ''}
+                      onChange={(e) => handleAddInputChange('minimumOrders', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={addFormData.status || 'Active'}
+                      onChange={(e) => handleAddInputChange('status', e.target.value as 'Active' | 'Inactive')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Benefits
+                  </label>
+                  <textarea
+                    value={addFormData.benefits || ''}
+                    onChange={(e) => handleAddInputChange('benefits', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                    required
+                    placeholder="Describe the benefits for this level..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={handleCloseAddModal}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Create Level
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

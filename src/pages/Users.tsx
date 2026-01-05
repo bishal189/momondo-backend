@@ -96,6 +96,37 @@ function Users() {
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addFormData, setAddFormData] = useState<Partial<User>>({
+    username: '',
+    superiorId: '',
+    phoneNumber: '',
+    balance: 0,
+    availableDailyOrder: 0,
+    takingOrdersToday: false,
+    currentOrdersMade: 0,
+    ordersReceivedToday: 0,
+    todaysCommission: 0,
+    credibility: 0,
+    superiorUser: '',
+    invitationCode: '',
+    status: 'Active',
+    membershipLevel: 'Basic',
+    frozenAmount: 0,
+    robSingle: false,
+    allowWithdrawal: true,
+  });
+  const [isDebitModalOpen, setIsDebitModalOpen] = useState(false);
+  const [selectedUserForDebit, setSelectedUserForDebit] = useState<User | null>(null);
+  const [debitFormData, setDebitFormData] = useState({
+    memberAccount: '',
+    type: '',
+    amount: 0.00,
+    remarkType: 'Deposit',
+    remark: '',
+  });
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [userToReset, setUserToReset] = useState<User | null>(null);
   const itemsPerPage = 10;
 
   const filteredUsers = users.filter(
@@ -113,7 +144,42 @@ function Users() {
   );
 
   const handleAddDebit = (userId: number) => {
-    console.log('Add Debit for user:', userId);
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      setSelectedUserForDebit(user);
+      setDebitFormData({
+        memberAccount: `${user.username} (ID: ${user.id})`,
+        type: '',
+        amount: 0.00,
+        remarkType: 'Deposit',
+        remark: '',
+      });
+      setIsDebitModalOpen(true);
+    }
+  };
+
+  const handleCloseDebitModal = () => {
+    setIsDebitModalOpen(false);
+    setSelectedUserForDebit(null);
+    setDebitFormData({
+      memberAccount: '',
+      type: '',
+      amount: 0.00,
+      remarkType: 'Deposit',
+      remark: '',
+    });
+  };
+
+  const handleSubmitDebit = () => {
+    if (!selectedUserForDebit) return;
+
+    console.log('Debit/Credit Transaction:', {
+      userId: selectedUserForDebit.id,
+      username: selectedUserForDebit.username,
+      ...debitFormData,
+    });
+
+    handleCloseDebitModal();
   };
 
   const handleSetupOrders = (userId: number) => {
@@ -121,7 +187,35 @@ function Users() {
   };
 
   const handleResetQty = (userId: number) => {
-    console.log('Reset Qty for user:', userId);
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      setUserToReset(user);
+      setIsResetModalOpen(true);
+    }
+  };
+
+  const handleCloseResetModal = () => {
+    setIsResetModalOpen(false);
+    setUserToReset(null);
+  };
+
+  const handleConfirmReset = () => {
+    if (!userToReset) return;
+
+    const updatedUsers = users.map((user) =>
+      user.id === userToReset.id
+        ? {
+            ...user,
+            currentOrdersMade: 0,
+            ordersReceivedToday: 0,
+            availableDailyOrder: user.availableDailyOrder,
+          }
+        : user
+    );
+
+    setUsers(updatedUsers);
+    handleCloseResetModal();
+    console.log('Quantity reset for user:', userToReset.username);
   };
 
   const getStatusBadge = (status: string) => {
@@ -137,11 +231,107 @@ function Users() {
     );
   };
 
+  const handleAddNew = () => {
+    setAddFormData({
+      username: '',
+      superiorId: '',
+      phoneNumber: '',
+      balance: 0,
+      availableDailyOrder: 0,
+      takingOrdersToday: false,
+      currentOrdersMade: 0,
+      ordersReceivedToday: 0,
+      todaysCommission: 0,
+      credibility: 0,
+      superiorUser: '',
+      invitationCode: '',
+      status: 'Active',
+      membershipLevel: 'Basic',
+      frozenAmount: 0,
+      robSingle: false,
+      allowWithdrawal: true,
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false);
+    setAddFormData({
+      username: '',
+      superiorId: '',
+      phoneNumber: '',
+      balance: 0,
+      availableDailyOrder: 0,
+      takingOrdersToday: false,
+      currentOrdersMade: 0,
+      ordersReceivedToday: 0,
+      todaysCommission: 0,
+      credibility: 0,
+      superiorUser: '',
+      invitationCode: '',
+      status: 'Active',
+      membershipLevel: 'Basic',
+      frozenAmount: 0,
+      robSingle: false,
+      allowWithdrawal: true,
+    });
+  };
+
+  const handleSaveNew = () => {
+    const newUser: User = {
+      id: Math.max(...users.map((u) => u.id)) + 1,
+      username: addFormData.username || '',
+      superiorId: addFormData.superiorId || '',
+      phoneNumber: addFormData.phoneNumber || '',
+      balance: addFormData.balance || 0,
+      availableDailyOrder: addFormData.availableDailyOrder || 0,
+      takingOrdersToday: addFormData.takingOrdersToday || false,
+      currentOrdersMade: addFormData.currentOrdersMade || 0,
+      ordersReceivedToday: addFormData.ordersReceivedToday || 0,
+      todaysCommission: addFormData.todaysCommission || 0,
+      credibility: addFormData.credibility || 0,
+      superiorUser: addFormData.superiorUser || '',
+      invitationCode: addFormData.invitationCode || `INV${Date.now()}`,
+      status: addFormData.status || 'Active',
+      membershipLevel: addFormData.membershipLevel || 'Basic',
+      frozenAmount: addFormData.frozenAmount || 0,
+      robSingle: addFormData.robSingle || false,
+      allowWithdrawal: addFormData.allowWithdrawal !== undefined ? addFormData.allowWithdrawal : true,
+      registrationTime: new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
+      lastLoginTime: 'Never',
+    };
+
+    setUsers([...users, newUser]);
+    handleCloseAddModal();
+    console.log('New user created:', newUser);
+  };
+
+  const handleAddInputChange = (field: keyof User, value: string | number | boolean) => {
+    setAddFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   return (
     <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="max-w-full mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Users</h1>
+          <button
+            onClick={handleAddNew}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Add New User
+          </button>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -316,6 +506,465 @@ function Users() {
           )}
         </div>
       </div>
+
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Add New User
+                </h2>
+                <button
+                  onClick={handleCloseAddModal}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveNew();
+                }}
+                className="space-y-6"
+              >
+                <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Username *
+                      </label>
+                      <input
+                        type="text"
+                        value={addFormData.username || ''}
+                        onChange={(e) => handleAddInputChange('username', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Phone Number *
+                      </label>
+                      <input
+                        type="tel"
+                        value={addFormData.phoneNumber || ''}
+                        onChange={(e) => handleAddInputChange('phoneNumber', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                        placeholder="+1234567890"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Superior ID
+                      </label>
+                      <input
+                        type="text"
+                        value={addFormData.superiorId || ''}
+                        onChange={(e) => handleAddInputChange('superiorId', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="SUP001"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Superior User
+                      </label>
+                      <input
+                        type="text"
+                        value={addFormData.superiorUser || ''}
+                        onChange={(e) => handleAddInputChange('superiorUser', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="admin_user"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Invitation Code
+                      </label>
+                      <input
+                        type="text"
+                        value={addFormData.invitationCode || ''}
+                        onChange={(e) => handleAddInputChange('invitationCode', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Auto-generated if empty"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Membership Level
+                      </label>
+                      <select
+                        value={addFormData.membershipLevel || 'Basic'}
+                        onChange={(e) => handleAddInputChange('membershipLevel', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="Basic">Basic</option>
+                        <option value="Premium">Premium</option>
+                        <option value="Gold">Gold</option>
+                        <option value="Platinum">Platinum</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Financial Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Balance
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={addFormData.balance || ''}
+                        onChange={(e) => handleAddInputChange('balance', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Frozen Amount
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={addFormData.frozenAmount || ''}
+                        onChange={(e) => handleAddInputChange('frozenAmount', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Credibility (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={addFormData.credibility || ''}
+                        onChange={(e) => handleAddInputChange('credibility', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Today's Commission
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={addFormData.todaysCommission || ''}
+                        onChange={(e) => handleAddInputChange('todaysCommission', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Order Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Available Daily Order
+                      </label>
+                      <input
+                        type="number"
+                        value={addFormData.availableDailyOrder || ''}
+                        onChange={(e) => handleAddInputChange('availableDailyOrder', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Current Orders Made
+                      </label>
+                      <input
+                        type="number"
+                        value={addFormData.currentOrdersMade || ''}
+                        onChange={(e) => handleAddInputChange('currentOrdersMade', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Orders Received Today
+                      </label>
+                      <input
+                        type="number"
+                        value={addFormData.ordersReceivedToday || ''}
+                        onChange={(e) => handleAddInputChange('ordersReceivedToday', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Settings</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Status
+                      </label>
+                      <select
+                        value={addFormData.status || 'Active'}
+                        onChange={(e) => handleAddInputChange('status', e.target.value as 'Active' | 'Inactive' | 'Suspended')}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Suspended">Suspended</option>
+                      </select>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={addFormData.takingOrdersToday || false}
+                          onChange={(e) => handleAddInputChange('takingOrdersToday', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Taking Orders Today</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={addFormData.robSingle || false}
+                          onChange={(e) => handleAddInputChange('robSingle', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Rob Single</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={addFormData.allowWithdrawal !== undefined ? addFormData.allowWithdrawal : true}
+                          onChange={(e) => handleAddInputChange('allowWithdrawal', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Allow Withdrawal</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={handleCloseAddModal}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Create User
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDebitModalOpen && selectedUserForDebit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Add Debit/Credit Transaction
+                </h2>
+                <button
+                  onClick={handleCloseDebitModal}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSubmitDebit();
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Member Account *
+                  </label>
+                  <input
+                    type="text"
+                    value={debitFormData.memberAccount}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 bg-gray-50 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Type *
+                  </label>
+                  <select
+                    value={debitFormData.type}
+                    onChange={(e) => setDebitFormData({ ...debitFormData, type: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">-- Select Type --</option>
+                    <option value="Debit">Debit</option>
+                    <option value="Credit">Credit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Amount *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={debitFormData.amount}
+                    onChange={(e) => setDebitFormData({ ...debitFormData, amount: parseFloat(e.target.value) || 0.00 })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    min="0"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Select Remark Type:
+                  </label>
+                  <select
+                    value={debitFormData.remarkType}
+                    onChange={(e) => setDebitFormData({ ...debitFormData, remarkType: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Deposit">Deposit</option>
+                    <option value="Rewards">Rewards</option>
+                    <option value="Rebate">Rebate</option>
+                    <option value="Activation Fees">Activation Fees</option>
+                    <option value="Basic Salary">Basic Salary</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Remark
+                  </label>
+                  <textarea
+                    value={debitFormData.remark}
+                    onChange={(e) => setDebitFormData({ ...debitFormData, remark: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                    placeholder="Enter remark or description..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={handleCloseDebitModal}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Submit Transaction
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isResetModalOpen && userToReset && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Reset Quantity
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    This will reset order quantities for this user.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseResetModal}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-4">
+                  Are you sure you want to reset the quantity for <span className="font-semibold text-gray-900 dark:text-white">{userToReset.username}</span>?
+                </p>
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                    <p><span className="font-medium">Current Orders Made:</span> {userToReset.currentOrdersMade}</p>
+                    <p><span className="font-medium">Orders Received Today:</span> {userToReset.ordersReceivedToday}</p>
+                    <p className="text-yellow-600 dark:text-yellow-400 font-medium mt-2">
+                      These values will be reset to 0.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={handleCloseResetModal}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmReset}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+                >
+                  Reset Quantity
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

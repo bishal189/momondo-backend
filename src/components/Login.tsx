@@ -1,15 +1,40 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api, authStorage } from '../services/api';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login attempt:', { email, password });
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await api.login({ email, password });
+      
+      if (response.access) {
+        authStorage.setToken(response.access);
+      }
+      
+      if (response.refresh) {
+        authStorage.setRefreshToken(response.refresh);
+      }
+      
+      if (!response.access) {
+        throw new Error('Login successful but no authentication token received. Please contact support.');
+      }
+      
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,6 +51,12 @@ function Login() {
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+            
             <div>
               <label 
                 htmlFor="email" 
@@ -41,6 +72,7 @@ function Login() {
                 placeholder="name@example.com"
                 className="w-full px-4 py-3.5 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -59,6 +91,7 @@ function Login() {
                 placeholder="••••••••"
                 className="w-full px-4 py-3.5 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -67,6 +100,7 @@ function Login() {
                 <input
                   type="checkbox"
                   className="w-4 h-4 text-cyan-400 border-gray-300 rounded focus:ring-cyan-400"
+                  disabled={loading}
                 />
                 <span className="ml-2 text-gray-600 dark:text-gray-400">Remember me</span>
               </label>
@@ -74,9 +108,10 @@ function Login() {
             
             <button 
               type="submit" 
-              className="w-full py-3.5 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-xl font-semibold text-base shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2"
+              disabled={loading}
+              className="w-full py-3.5 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-xl font-semibold text-base shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
         </div>

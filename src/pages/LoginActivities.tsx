@@ -1,119 +1,65 @@
-import { useState } from 'react';
-
-interface LoginActivity {
-  id: number;
-  user: string;
-  ipAddress: string;
-  browser: string;
-  operatingSystem: string;
-  deviceType: string;
-  loginTime: string;
-}
-
-const mockActivities: LoginActivity[] = [
-  {
-    id: 1,
-    user: 'john_doe',
-    ipAddress: '192.168.1.100',
-    browser: 'Chrome 120.0',
-    operatingSystem: 'Windows 11',
-    deviceType: 'Desktop',
-    loginTime: '2024-01-20 14:25:30',
-  },
-  {
-    id: 2,
-    user: 'jane_smith',
-    ipAddress: '192.168.1.101',
-    browser: 'Firefox 121.0',
-    operatingSystem: 'macOS 14.2',
-    deviceType: 'Desktop',
-    loginTime: '2024-01-20 13:15:45',
-  },
-  {
-    id: 3,
-    user: 'bob_wilson',
-    ipAddress: '192.168.1.102',
-    browser: 'Safari 17.2',
-    operatingSystem: 'iOS 17.2',
-    deviceType: 'Mobile',
-    loginTime: '2024-01-20 12:30:20',
-  },
-  {
-    id: 4,
-    user: 'alice_brown',
-    ipAddress: '192.168.1.103',
-    browser: 'Chrome 120.0',
-    operatingSystem: 'Android 14',
-    deviceType: 'Mobile',
-    loginTime: '2024-01-20 11:45:10',
-  },
-  {
-    id: 5,
-    user: 'charlie_davis',
-    ipAddress: '192.168.1.104',
-    browser: 'Edge 120.0',
-    operatingSystem: 'Windows 10',
-    deviceType: 'Desktop',
-    loginTime: '2024-01-20 10:20:55',
-  },
-  {
-    id: 6,
-    user: 'diana_miller',
-    ipAddress: '192.168.1.105',
-    browser: 'Chrome 120.0',
-    operatingSystem: 'Linux Ubuntu 22.04',
-    deviceType: 'Desktop',
-    loginTime: '2024-01-20 09:15:30',
-  },
-  {
-    id: 7,
-    user: 'john_doe',
-    ipAddress: '192.168.1.100',
-    browser: 'Chrome Mobile 120.0',
-    operatingSystem: 'Android 13',
-    deviceType: 'Mobile',
-    loginTime: '2024-01-19 18:45:20',
-  },
-  {
-    id: 8,
-    user: 'jane_smith',
-    ipAddress: '192.168.1.101',
-    browser: 'Safari 17.1',
-    operatingSystem: 'macOS 14.1',
-    deviceType: 'Desktop',
-    loginTime: '2024-01-19 16:30:15',
-  },
-];
+import { useState, useEffect } from 'react';
+import { api, authStorage, type LoginActivity, type LoginActivitiesResponse } from '../services/api';
 
 function LoginActivities() {
-  const [activities, setActivities] = useState<LoginActivity[]>(mockActivities);
+  const [activities, setActivities] = useState<LoginActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [totalCount, setTotalCount] = useState(0);
+  const [nextPage, setNextPage] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchActivities(currentPage);
+  }, [currentPage]);
+
+  const fetchActivities = async (page: number) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const token = authStorage.getToken();
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response: LoginActivitiesResponse = await api.getLoginActivities(token, page);
+      setActivities(response.results);
+      setTotalCount(response.count);
+      setNextPage(response.next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch login activities');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredActivities = activities.filter(
     (activity) =>
-      activity.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      activity.ipAddress.includes(searchTerm) ||
+      activity.user_username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.ip_address.includes(searchTerm) ||
       activity.browser.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      activity.operatingSystem.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      activity.deviceType.toLowerCase().includes(searchTerm.toLowerCase())
+      activity.operating_system.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.device_type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredActivities.length / itemsPerPage);
-  const paginatedActivities = filteredActivities.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
+
+  const totalPages = Math.ceil(totalCount / 10);
 
   const getDeviceTypeBadge = (deviceType: string) => {
-    const styles = {
-      Desktop: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      Mobile: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      Tablet: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    const styles: Record<string, string> = {
+      DESKTOP: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      MOBILE: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      TABLET: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[deviceType as keyof typeof styles] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[deviceType] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
         {deviceType}
       </span>
     );
@@ -150,7 +96,7 @@ function LoginActivities() {
                 </svg>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                {filteredActivities.length} activit{filteredActivities.length !== 1 ? 'ies' : 'y'} found
+                {totalCount} activit{totalCount !== 1 ? 'ies' : 'y'} total
               </div>
             </div>
           </div>
@@ -169,16 +115,28 @@ function LoginActivities() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {paginatedActivities.length > 0 ? (
-                  paginatedActivities.map((activity) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-red-500 dark:text-red-400">
+                      {error}
+                    </td>
+                  </tr>
+                ) : filteredActivities.length > 0 ? (
+                  filteredActivities.map((activity) => (
                     <tr key={activity.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{activity.id}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{activity.user}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-mono">{activity.ipAddress}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{activity.user_username}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-mono">{activity.ip_address}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{activity.browser}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{activity.operatingSystem}</td>
-                      <td className="px-4 py-3 text-sm">{getDeviceTypeBadge(activity.deviceType)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{activity.loginTime}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{activity.operating_system}</td>
+                      <td className="px-4 py-3 text-sm">{getDeviceTypeBadge(activity.device_type)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(activity.login_time)}</td>
                     </tr>
                   ))
                 ) : (
@@ -195,12 +153,12 @@ function LoginActivities() {
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredActivities.length)} of {filteredActivities.length} activit{filteredActivities.length !== 1 ? 'ies' : 'y'}
+                Showing {(currentPage - 1) * 10 + 1} to {Math.min(currentPage * 10, totalCount)} of {totalCount} activit{totalCount !== 1 ? 'ies' : 'y'}
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || loading}
                   className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
@@ -210,7 +168,7 @@ function LoginActivities() {
                 </span>
                 <button
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || loading || !nextPage}
                   className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { ReactElement } from 'react';
+import { logout, api, authStorage, type UserProfile } from '../services/api';
 
 interface MenuItem {
   id: string;
@@ -110,6 +111,22 @@ function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const token = authStorage.getToken();
+      if (token) {
+        try {
+          const profile = await api.getUserProfile(token);
+          setUserProfile(profile);
+        } catch {
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   const toggleExpand = (itemId: string) => {
     setExpandedItems((prev) =>
@@ -159,9 +176,20 @@ function Sidebar() {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          <div className="flex flex-col">
-            <span className="text-sm text-white">ayush (Super Admin)</span>
-            <span className="text-xs text-gray-400">Basic</span>
+          <div className="flex flex-col flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-white truncate">
+                {userProfile?.username || 'Loading...'}
+              </span>
+              {userProfile?.invitation_code && (
+                <span className="text-xs text-cyan-400 font-medium">
+                  {userProfile.invitation_code}
+                </span>
+              )}
+            </div>
+            <span className="text-xs text-gray-400">
+              {userProfile?.role || 'User'}
+            </span>
           </div>
         </div>
       </div>
@@ -224,7 +252,8 @@ function Sidebar() {
 
       <div className="p-4 border-t border-gray-800">
         <button
-          onClick={() => {
+          onClick={async () => {
+            await logout();
             navigate('/login');
           }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 transition-colors text-red-400 hover:text-red-300"

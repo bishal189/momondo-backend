@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../services/api';
+import { api, type Level } from '../services/api';
 
 interface User {
   id: number;
@@ -12,6 +12,8 @@ interface User {
   status: 'Active' | 'Inactive';
   date_joined: string;
   last_login: string | null;
+  level_id?: number | null;
+  level_name?: string | null;
 }
 
 function UserManagement() {
@@ -35,6 +37,12 @@ function UserManagement() {
   const [formLoading, setFormLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [levels, setLevels] = useState<Level[]>([]);
+  const [selectedLevelId, setSelectedLevelId] = useState<string>('');
+  const [levelAssignLoading, setLevelAssignLoading] = useState(false);
+  const [levelError, setLevelError] = useState('');
   const itemsPerPage = 10;
 
   const convertApiUserToLocal = (apiUser: {
@@ -44,6 +52,17 @@ function UserManagement() {
     phone_number: string;
     invitation_code: string;
     role: string;
+    level?: {
+      id: number;
+      level: number;
+      level_name: string;
+      required_points: number;
+      commission_rate: string;
+      min_orders: number;
+      benefits: string;
+      status: string;
+      created_at: string;
+    } | null;
     created_by: number;
     created_by_email: string;
     created_by_username: string;
@@ -62,6 +81,8 @@ function UserManagement() {
       status: apiUser.is_active ? 'Active' : 'Inactive',
       date_joined: apiUser.date_joined,
       last_login: apiUser.last_login,
+      level_id: apiUser.level?.id || null,
+      level_name: apiUser.level?.level_name || null,
     };
   };
 
@@ -72,6 +93,17 @@ function UserManagement() {
     phone_number: string;
     invitation_code: string;
     role: string;
+    level?: {
+      id: number;
+      level: number;
+      level_name: string;
+      required_points: number;
+      commission_rate: string;
+      min_orders: number;
+      benefits: string;
+      status: string;
+      created_at: string;
+    } | null;
     created_by: string;
     created_by_id: number;
     created_by_email: string;
@@ -90,6 +122,8 @@ function UserManagement() {
       status: apiUser.status === 'Active' ? 'Active' : 'Inactive',
       date_joined: apiUser.date_joined,
       last_login: apiUser.last_login,
+      level_id: apiUser.level?.id || null,
+      level_name: apiUser.level?.level_name || null,
     };
   };
 
@@ -211,6 +245,69 @@ function UserManagement() {
       alert(err instanceof Error ? err.message : 'Failed to deactivate user');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleOpenLevelModal = async (user: User) => {
+    setSelectedUser(user);
+    setLevelError('');
+    setIsLevelModalOpen(true);
+
+    try {
+      const response = await api.getLevels({ status: 'ACTIVE' });
+      setLevels(response.results);
+      if (user.level_id) {
+        setSelectedLevelId(user.level_id.toString());
+      } else {
+        setSelectedLevelId('');
+      }
+    } catch (err) {
+      console.error('Error fetching levels:', err);
+      setLevelError('Failed to load levels');
+    }
+  };
+
+  const handleCloseLevelModal = () => {
+    setIsLevelModalOpen(false);
+    setSelectedUser(null);
+    setSelectedLevelId('');
+    setLevelError('');
+  };
+
+  const handleAssignLevel = async () => {
+    if (!selectedUser) return;
+
+    setLevelAssignLoading(true);
+    setLevelError('');
+
+    try {
+      const levelId = selectedLevelId ? parseInt(selectedLevelId) : null;
+      
+      if (!levelId) {
+        setLevelError('Please select a level');
+        setLevelAssignLoading(false);
+        return;
+      }
+
+      await api.assignLevelToUser(selectedUser.id, levelId);
+      handleCloseLevelModal();
+      await fetchUsers();
+    } catch (err: any) {
+      if (err.errors) {
+        const errorMessages = Object.entries(err.errors)
+          .map(([key, value]) => {
+            if (Array.isArray(value)) {
+              return `${key}: ${value.join(', ')}`;
+            }
+            return `${key}: ${value}`;
+          })
+          .join('\n');
+        setLevelError(errorMessages);
+      } else {
+        setLevelError(err instanceof Error ? err.message : 'Failed to assign level');
+      }
+    } finally {
+      setLevelAssignLoading(false);
     }
   };
 
@@ -395,6 +492,7 @@ function UserManagement() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Phone Number</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Invitation Code</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created By</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date Joined</th>
@@ -417,6 +515,9 @@ function UserManagement() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                        {user.level_name || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                         {user.created_by || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm">{getStatusBadge(user.status)}</td>
@@ -424,6 +525,13 @@ function UserManagement() {
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(user.last_login)}</td>
                       <td className="px-4 py-3 text-sm">
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenLevelModal(user)}
+                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                            title="Assign Level"
+                          >
+                            Level
+                          </button>
                           {user.status === 'Active' ? (
                             <button
                               onClick={() => handleDeactivate(user.id)}
@@ -449,7 +557,7 @@ function UserManagement() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={12} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       No users found
                     </td>
                   </tr>
@@ -706,6 +814,76 @@ function UserManagement() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isLevelModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full">
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Assign Level
+                </h2>
+                <button
+                  onClick={handleCloseLevelModal}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  User: <span className="font-medium text-gray-900 dark:text-white">{selectedUser.username}</span>
+                </p>
+              </div>
+
+              {levelError && (
+                <div className="mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 rounded-lg text-xs">
+                  {levelError}
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                  Select Level
+                </label>
+                <select
+                  value={selectedLevelId}
+                  onChange={(e) => setSelectedLevelId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                >
+                  <option value="">No Level</option>
+                  {levels.map((level) => (
+                    <option key={level.id} value={level.id}>
+                      {level.level_name} (Level {level.level})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={handleCloseLevelModal}
+                  className="px-4 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAssignLevel}
+                  disabled={levelAssignLoading}
+                  className="px-4 py-1.5 text-sm bg-gray-900 dark:bg-gray-900 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {levelAssignLoading ? 'Assigning...' : 'Assign'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

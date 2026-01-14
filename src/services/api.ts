@@ -278,6 +278,17 @@ export const api = {
       phone_number: string;
       invitation_code: string;
       role: string;
+      level?: {
+        id: number;
+        level: number;
+        level_name: string;
+        required_points: number;
+        commission_rate: string;
+        min_orders: number;
+        benefits: string;
+        status: string;
+        created_at: string;
+      } | null;
       created_by: number;
       created_by_email: string;
       created_by_username: string;
@@ -307,6 +318,17 @@ export const api = {
       phone_number: string;
       invitation_code: string;
       role: string;
+      level?: {
+        id: number;
+        level: number;
+        level_name: string;
+        required_points: number;
+        commission_rate: string;
+        min_orders: number;
+        benefits: string;
+        status: string;
+        created_at: string;
+      } | null;
       created_by: string;
       created_by_id: number;
       created_by_email: string;
@@ -496,6 +518,33 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.detail || 'Failed to delete level');
+    }
+
+    return response.json();
+  },
+
+  async assignLevelToUser(userId: number, levelId: number | null): Promise<any> {
+    const body: { user_id: number; level_id?: number } = {
+      user_id: userId,
+    };
+
+    if (levelId) {
+      body.level_id = levelId;
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/level/assign/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to assign level');
+      (error as any).errors = errorData;
+      throw error;
     }
 
     return response.json();

@@ -252,6 +252,149 @@ export const api = {
 
     return response.json();
   },
+
+  async getProducts(params?: {
+    status?: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
+    search?: string;
+    min_price?: string;
+    max_price?: string;
+  }): Promise<{ products: Array<{
+    id: number;
+    image: string | null;
+    image_url: string | null;
+    title: string;
+    description: string;
+    price: string;
+    status: 'ACTIVE' | 'INACTIVE';
+    created_at: string;
+  }>; count: number }> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.status) {
+      queryParams.append('status', params.status);
+    }
+    if (params?.search) {
+      queryParams.append('search', params.search);
+    }
+    if (params?.min_price) {
+      queryParams.append('min_price', params.min_price);
+    }
+    if (params?.max_price) {
+      queryParams.append('max_price', params.max_price);
+    }
+
+    const url = `${API_BASE_URL}/api/product/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch products');
+    }
+
+    return response.json();
+  },
+
+  async createProduct(productData: {
+    title: string;
+    description: string;
+    price: string;
+    status: 'ACTIVE' | 'INACTIVE';
+    image?: File;
+  }): Promise<any> {
+    const formData = new FormData();
+    formData.append('title', productData.title);
+    formData.append('description', productData.description);
+    formData.append('price', productData.price);
+    formData.append('status', productData.status);
+    
+    if (productData.image) {
+      formData.append('image', productData.image);
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to create product');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async getProductDetail(id: number): Promise<{
+    id: number;
+    image: string | null;
+    image_url: string | null;
+    title: string;
+    description: string;
+    price: string;
+    status: 'ACTIVE' | 'INACTIVE';
+    created_at: string;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/${id}/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch product details');
+    }
+
+    return response.json();
+  },
+
+  async updateProduct(id: number, productData: {
+    title: string;
+    description: string;
+    price: string;
+    status: 'ACTIVE' | 'INACTIVE';
+    image?: File;
+  }): Promise<any> {
+    const formData = new FormData();
+    formData.append('title', productData.title);
+    formData.append('description', productData.description);
+    formData.append('price', productData.price);
+    formData.append('status', productData.status);
+    
+    if (productData.image) {
+      formData.append('image', productData.image);
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/${id}/`, {
+      method: 'PUT',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to update product');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async deleteProduct(id: number): Promise<{ message: string }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/${id}/`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to delete product');
+    }
+
+    return response.json();
+  },
 };
 
 export const authStorage = {

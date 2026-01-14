@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { ReactElement } from 'react';
-import { logout, api, authStorage, type UserProfile } from '../services/api';
+import { logout, api, type UserProfile } from '../services/api';
 
 interface MenuItem {
   id: string;
@@ -115,13 +115,10 @@ function Sidebar() {
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      const token = authStorage.getToken();
-      if (token) {
-        try {
-          const profile = await api.getUserProfile(token);
-          setUserProfile(profile);
-        } catch {
-        }
+      try {
+        const profile = await api.getUserProfile();
+        setUserProfile(profile);
+      } catch {
       }
     };
 

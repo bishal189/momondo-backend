@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, authStorage, type LoginActivity, type LoginActivitiesResponse } from '../services/api';
+import { api, type LoginActivity, type LoginActivitiesResponse } from '../services/api';
 
 function LoginActivities() {
   const [activities, setActivities] = useState<LoginActivity[]>([]);
@@ -19,12 +19,7 @@ function LoginActivities() {
     setError('');
     
     try {
-      const token = authStorage.getToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response: LoginActivitiesResponse = await api.getLoginActivities(token, page);
+      const response: LoginActivitiesResponse = await api.getLoginActivities(page);
       setActivities(response.results);
       setTotalCount(response.count);
       setNextPage(response.next);

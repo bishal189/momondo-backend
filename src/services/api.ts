@@ -81,13 +81,18 @@ export const api = {
     return response.json();
   },
 
-  async logout(token: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/auth/logout/`, {
+  async logout(refreshToken?: string): Promise<void> {
+    const body: { refresh_token?: string } = {};
+    if (refreshToken) {
+      body.refresh_token = refreshToken;
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/logout/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -96,12 +101,9 @@ export const api = {
     }
   },
 
-  async getUserProfile(token: string): Promise<UserProfile> {
-    const response = await fetch(`${API_BASE_URL}/api/auth/profile/`, {
+  async getUserProfile(): Promise<UserProfile> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/profile/`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {
@@ -112,16 +114,13 @@ export const api = {
     return response.json();
   },
 
-  async getLoginActivities(token: string, page?: number): Promise<LoginActivitiesResponse> {
+  async getLoginActivities(page?: number): Promise<LoginActivitiesResponse> {
     const url = page 
       ? `${API_BASE_URL}/api/activity/login-activities/?page=${page}`
       : `${API_BASE_URL}/api/activity/login-activities/`;
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {
@@ -188,18 +187,77 @@ export const refreshAccessToken = async (): Promise<string | null> => {
   }
 };
 
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+const handleTokenRefresh = async (): Promise<string | null> => {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = refreshAccessToken();
+  
+  try {
+    const newToken = await refreshPromise;
+    return newToken;
+  } finally {
+    isRefreshing = false;
+    refreshPromise = null;
+  }
+};
+
+const forceLogout = () => {
+  authStorage.clearAuth();
+  window.location.href = '/login';
+};
+
+export const fetchWithAuth = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const token = authStorage.getToken();
+  
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  let response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    const newToken = await handleTokenRefresh();
+    
+    if (newToken) {
+      headers.set('Authorization', `Bearer ${newToken}`);
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } else {
+      forceLogout();
+      throw new Error('Session expired. Please login again.');
+    }
+  }
+
+  return response;
+};
+
 export const logout = async (): Promise<void> => {
   const token = authStorage.getToken();
+  const refreshToken = authStorage.getRefreshToken();
   
   if (token) {
     try {
-      await api.logout(token);
+      await api.logout(refreshToken || undefined);
     } catch {
     }
   }
   
   authStorage.clearAuth();
-  
-  localStorage.clear();
+  window.location.href = '/login';
 };
 

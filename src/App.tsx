@@ -8,6 +8,8 @@ import Users from './pages/Users';
 import LoginActivities from './pages/LoginActivities';
 import Levels from './pages/Levels';
 import Products from './pages/Products';
+import Agents from './pages/Agents';
+import UserManagement from './pages/UserManagement';
 import Transactions from './pages/Transactions';
 import SetupOrders from './pages/SetupOrders';
 
@@ -30,6 +32,8 @@ function App() {
           <Route path="login-activities" element={<LoginActivities />} />
           <Route path="levels" element={<Levels />} />
           <Route path="products" element={<Products />} />
+          <Route path="agents" element={<Agents />} />
+          <Route path="user-management" element={<UserManagement />} />
           <Route path="transactions" element={<Transactions />} />
         </Route>
         <Route path="/" element={<Navigate to="/login" replace />} />

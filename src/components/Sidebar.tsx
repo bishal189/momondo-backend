@@ -25,6 +25,16 @@ const menuItems: MenuItem[] = [
     icon: 'package',
   },
   {
+    id: 'agents',
+    label: 'Agents',
+    icon: 'users',
+  },
+  {
+    id: 'user-management',
+    label: 'User Management',
+    icon: 'users',
+  },
+  {
     id: 'transactions',
     label: 'Transactions',
     icon: 'transaction',
@@ -112,6 +122,8 @@ function Sidebar() {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAgent, setIsAgent] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -122,7 +134,19 @@ function Sidebar() {
       }
     };
 
+    const fetchUserRole = async () => {
+      try {
+        const roleData = await api.checkRole();
+        setIsAdmin(roleData.is_admin || roleData.role === 'ADMIN');
+        setIsAgent(roleData.is_agent || roleData.role === 'AGENT');
+      } catch {
+        setIsAdmin(false);
+        setIsAgent(false);
+      }
+    };
+
     fetchUserProfile();
+    fetchUserRole();
   }, []);
 
   const toggleExpand = (itemId: string) => {
@@ -140,6 +164,8 @@ function Sidebar() {
       'login-activities': '/dashboard/login-activities',
       levels: '/dashboard/levels',
       products: '/dashboard/products',
+      agents: '/dashboard/agents',
+      'user-management': '/dashboard/user-management',
       transactions: '/dashboard/transactions',
     };
     return routes[itemId] || '#';
@@ -192,7 +218,11 @@ function Sidebar() {
       </div>
 
       <nav className="flex-1 p-2">
-        {menuItems.map((item) => (
+        {menuItems.filter((item) => {
+          if (item.id === 'agents') return isAdmin;
+          if (item.id === 'user-management') return isAdmin || isAgent;
+          return true;
+        }).map((item) => (
           <div key={item.id}>
             <div
               onClick={() => {

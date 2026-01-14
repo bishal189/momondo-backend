@@ -133,6 +133,228 @@ export const api = {
     return response.json();
   },
 
+  async checkRole(): Promise<{
+    is_admin: boolean;
+    is_agent: boolean;
+    is_user: boolean;
+    role: string;
+    user_id: number;
+    username: string;
+    email: string;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/check-role/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to check user role');
+    }
+
+    return response.json();
+  },
+
+  async createAgent(agentData: {
+    username: string;
+    email: string;
+    phone_number: string;
+    login_password: string;
+    confirm_login_password: string;
+  }): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/agents/create/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(agentData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to create agent');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async activateUser(userId: number): Promise<{
+    message: string;
+    user: {
+      id: number;
+      email: string;
+      username: string;
+      phone_number: string;
+      invitation_code: string;
+      role: string;
+      created_by: number;
+      created_by_email: string;
+      created_by_username: string;
+      date_joined: string;
+      last_login: string | null;
+      is_active: boolean;
+    };
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/users/${userId}/activate/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to activate user');
+    }
+
+    return response.json();
+  },
+
+  async deactivateUser(userId: number): Promise<{
+    message: string;
+    user: {
+      id: number;
+      email: string;
+      username: string;
+      phone_number: string;
+      invitation_code: string;
+      role: string;
+      created_by: number;
+      created_by_email: string;
+      created_by_username: string;
+      date_joined: string;
+      last_login: string | null;
+      is_active: boolean;
+    };
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/users/${userId}/deactivate/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to deactivate user');
+    }
+
+    return response.json();
+  },
+
+  async getAgentUsers(): Promise<{
+    agents: Array<{
+      id: number;
+      name: string;
+      email: string;
+      phone: string;
+      invitation_code: string;
+      total_users: number;
+      status: string;
+      created_by: string;
+      created_by_email: string;
+      created_at: string;
+    }>;
+    count: number;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/agents/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch agents');
+    }
+
+    return response.json();
+  },
+
+  async getMyUsers(): Promise<{
+    users: Array<{
+      id: number;
+      email: string;
+      username: string;
+      phone_number: string;
+      invitation_code: string;
+      role: string;
+      created_by: number;
+      created_by_email: string;
+      created_by_username: string;
+      date_joined: string;
+      last_login: string | null;
+      is_active: boolean;
+    }>;
+    count: number;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/my-users/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch users');
+    }
+
+    return response.json();
+  },
+
+  async getAdminAgentUsers(): Promise<{
+    users: Array<{
+      id: number;
+      username: string;
+      email: string;
+      phone_number: string;
+      invitation_code: string;
+      role: string;
+      created_by: string;
+      created_by_id: number;
+      created_by_email: string;
+      status: string;
+      date_joined: string;
+      last_login: string | null;
+    }>;
+    count: number;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/agents/users/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch users');
+    }
+
+    return response.json();
+  },
+
+  async createUserByAgent(userData: {
+    username: string;
+    email: string;
+    phone_number: string;
+    login_password: string;
+    confirm_login_password: string;
+    withdraw_password: string;
+    confirm_withdraw_password: string;
+  }): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/users/create/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to create user');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
   async getLoginActivities(page?: number): Promise<LoginActivitiesResponse> {
     const url = page 
       ? `${API_BASE_URL}/api/activity/login-activities/?page=${page}`
@@ -145,6 +367,32 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.detail || 'Failed to fetch login activities');
+    }
+
+    return response.json();
+  },
+
+  async getDashboardStats(): Promise<{
+    total_users: number;
+    active_session: number;
+    total_agent: number;
+    suspended_users: number;
+    top_recent_users?: Array<{
+      id: number;
+      initials: string;
+      name: string;
+      email: string;
+      time_ago: string;
+      status: string;
+    }>;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/dashboard/stats/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch dashboard stats');
     }
 
     return response.json();

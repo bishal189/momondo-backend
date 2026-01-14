@@ -46,6 +46,25 @@ export interface LoginActivitiesResponse {
   results: LoginActivity[];
 }
 
+export interface Level {
+  id: number;
+  level: number;
+  level_name: string;
+  required_points: number;
+  commission_rate: string;
+  min_orders: number;
+  benefits: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  created_at: string;
+}
+
+export interface LevelsResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Level[];
+}
+
 export const api = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
@@ -126,6 +145,109 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.detail || 'Failed to fetch login activities');
+    }
+
+    return response.json();
+  },
+
+  async getLevels(params?: { status?: 'ACTIVE' | 'INACTIVE'; search?: string }): Promise<LevelsResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) {
+      queryParams.append('status', params.status);
+    }
+    if (params?.search) {
+      queryParams.append('search', params.search);
+    }
+
+    const url = `${API_BASE_URL}/api/level/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch levels');
+    }
+
+    return response.json();
+  },
+
+  async createLevel(levelData: {
+    level: number;
+    level_name: string;
+    required_points: number;
+    commission_rate: string;
+    min_orders: number;
+    benefits: string;
+    status: 'ACTIVE' | 'INACTIVE';
+  }): Promise<Level> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/level/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(levelData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to create level');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async getLevelDetail(id: number): Promise<Level> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/level/${id}/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch level details');
+    }
+
+    return response.json();
+  },
+
+  async updateLevel(id: number, levelData: {
+    level: number;
+    level_name: string;
+    required_points: number;
+    commission_rate: string;
+    min_orders: number;
+    benefits: string;
+    status: 'ACTIVE' | 'INACTIVE';
+  }): Promise<Level> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/level/${id}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(levelData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to update level');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async deleteLevel(id: number): Promise<{ message: string }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/level/${id}/`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to delete level');
     }
 
     return response.json();

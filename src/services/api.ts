@@ -172,7 +172,7 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const error = new Error(errorData.message || errorData.detail || 'Failed to create agent');
-      (error as any).errors = errorData;
+      (error as any).errors = errorData.errors || errorData;
       throw error;
     }
 

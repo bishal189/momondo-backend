@@ -27,6 +27,7 @@ function Agents() {
   });
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -126,6 +127,7 @@ function Agents() {
     });
     setIsAddModalOpen(true);
     setAddError('');
+    setFieldErrors({});
     setShowPassword(false);
     setShowConfirmPassword(false);
   };
@@ -133,6 +135,7 @@ function Agents() {
   const handleCloseAddModal = () => {
     setIsAddModalOpen(false);
     setAddError('');
+    setFieldErrors({});
     setAddFormData({
       username: '',
       email: '',
@@ -144,12 +147,56 @@ function Agents() {
     setShowConfirmPassword(false);
   };
 
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhoneNumber = (phone: string): boolean => {
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+  };
+
   const handleSaveNew = async () => {
     setAddError('');
+    setFieldErrors({});
 
-    // Validate passwords match
-    if (addFormData.login_password !== addFormData.confirm_login_password) {
-      setAddError('Passwords do not match');
+    const errors: Record<string, string[]> = {};
+
+    if (!addFormData.username || addFormData.username.trim() === '') {
+      errors.username = ['Username is required'];
+    } else if (addFormData.username.trim().length < 3) {
+      errors.username = ['Username must be at least 3 characters long'];
+    } else if (!/^[a-zA-Z0-9_]+$/.test(addFormData.username.trim())) {
+      errors.username = ['Username can only contain letters, numbers, and underscores'];
+    }
+
+    if (!addFormData.email || addFormData.email.trim() === '') {
+      errors.email = ['Email is required'];
+    } else if (!validateEmail(addFormData.email.trim())) {
+      errors.email = ['Please enter a valid email address'];
+    }
+
+    if (!addFormData.phone_number || addFormData.phone_number.trim() === '') {
+      errors.phone_number = ['Phone number is required'];
+    } else if (!validatePhoneNumber(addFormData.phone_number.trim())) {
+      errors.phone_number = ['Please enter a valid phone number (at least 10 digits)'];
+    }
+
+    if (!addFormData.login_password || addFormData.login_password === '') {
+      errors.login_password = ['Login password is required'];
+    } else if (addFormData.login_password.length < 6) {
+      errors.login_password = ['Login password must be at least 6 characters long'];
+    }
+
+    if (!addFormData.confirm_login_password || addFormData.confirm_login_password === '') {
+      errors.confirm_login_password = ['Please confirm your login password'];
+    } else if (addFormData.login_password !== addFormData.confirm_login_password) {
+      errors.confirm_login_password = ['Passwords do not match'];
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -168,16 +215,21 @@ function Agents() {
       handleCloseAddModal();
       fetchAgents();
     } catch (err: any) {
+      setFieldErrors({});
+      setAddError('');
+
       if (err.errors) {
-        const errorMessages = Object.entries(err.errors)
-          .map(([key, value]) => {
-            if (Array.isArray(value)) {
-              return `${key}: ${value.join(', ')}`;
-            }
-            return `${key}: ${value}`;
-          })
-          .join('\n');
-        setAddError(errorMessages);
+        const normalizedErrors: Record<string, string[]> = {};
+
+        Object.keys(err.errors).forEach((key) => {
+          if (Array.isArray(err.errors[key])) {
+            normalizedErrors[key] = err.errors[key];
+          } else if (typeof err.errors[key] === 'string') {
+            normalizedErrors[key] = [err.errors[key]];
+          }
+        });
+
+        setFieldErrors(normalizedErrors);
       } else {
         setAddError(err instanceof Error ? err.message : 'Failed to create agent');
       }
@@ -223,6 +275,16 @@ function Agents() {
       ...prev,
       [field]: value,
     }));
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+    if (addError) {
+      setAddError('');
+    }
   };
 
   return (
@@ -393,12 +455,6 @@ function Agents() {
                 </button>
               </div>
 
-              {addError && (
-                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm whitespace-pre-line">
-                  {addError}
-                </div>
-              )}
-
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -414,10 +470,19 @@ function Agents() {
                     type="text"
                     value={addFormData.username}
                     onChange={(e) => handleAddInputChange('username', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      fieldErrors.username ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    }`}
                     required
                     placeholder="Enter agent username..."
                   />
+                  {fieldErrors.username && Array.isArray(fieldErrors.username) && fieldErrors.username.length > 0 && (
+                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {fieldErrors.username.map((err, idx) => (
+                        <div key={idx}>{err}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -428,10 +493,19 @@ function Agents() {
                     type="email"
                     value={addFormData.email}
                     onChange={(e) => handleAddInputChange('email', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      fieldErrors.email ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    }`}
                     required
                     placeholder="Enter agent email..."
                   />
+                  {fieldErrors.email && Array.isArray(fieldErrors.email) && fieldErrors.email.length > 0 && (
+                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {fieldErrors.email.map((err, idx) => (
+                        <div key={idx}>{err}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -442,10 +516,19 @@ function Agents() {
                     type="tel"
                     value={addFormData.phone_number}
                     onChange={(e) => handleAddInputChange('phone_number', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      fieldErrors.phone_number ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    }`}
                     required
                     placeholder="Enter agent phone number..."
                   />
+                  {fieldErrors.phone_number && Array.isArray(fieldErrors.phone_number) && fieldErrors.phone_number.length > 0 && (
+                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {fieldErrors.phone_number.map((err, idx) => (
+                        <div key={idx}>{err}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -457,7 +540,9 @@ function Agents() {
                       type={showPassword ? 'text' : 'password'}
                       value={addFormData.login_password}
                       onChange={(e) => handleAddInputChange('login_password', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+                      className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10 ${
+                        fieldErrors.login_password ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                      }`}
                       required
                       placeholder="Enter login password..."
                     />
@@ -478,6 +563,13 @@ function Agents() {
                       )}
                     </button>
                   </div>
+                  {fieldErrors.login_password && Array.isArray(fieldErrors.login_password) && fieldErrors.login_password.length > 0 && (
+                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {fieldErrors.login_password.map((err, idx) => (
+                        <div key={idx}>{err}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -489,7 +581,9 @@ function Agents() {
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={addFormData.confirm_login_password}
                       onChange={(e) => handleAddInputChange('confirm_login_password', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+                      className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10 ${
+                        fieldErrors.confirm_login_password ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                      }`}
                       required
                       placeholder="Confirm login password..."
                     />
@@ -510,6 +604,13 @@ function Agents() {
                       )}
                     </button>
                   </div>
+                  {fieldErrors.confirm_login_password && Array.isArray(fieldErrors.confirm_login_password) && fieldErrors.confirm_login_password.length > 0 && (
+                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {fieldErrors.confirm_login_password.map((err, idx) => (
+                        <div key={idx}>{err}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">

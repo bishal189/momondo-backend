@@ -14,6 +14,11 @@ interface User {
   last_login: string | null;
   level_id?: number | null;
   level_name?: string | null;
+  is_training_account?: boolean;
+  original_account_id?: number | null;
+  original_account_email?: string | null;
+  original_account_username?: string | null;
+  balance?: string | null;
 }
 
 function UserManagement() {
@@ -29,7 +34,7 @@ function UserManagement() {
     email: '',
     login_password: '',
     confirm_login_password: '',
-    original_account_id: '',
+    original_account_refer_code: '',
     withdraw_password: '',
     confirm_withdraw_password: '',
   });
@@ -64,12 +69,17 @@ function UserManagement() {
       status: string;
       created_at: string;
     } | null;
-    created_by: number;
-    created_by_email: string;
-    created_by_username: string;
+    created_by?: number;
+    created_by_email?: string;
+    created_by_username?: string;
     date_joined: string;
-    last_login: string | null;
-    is_active: boolean;
+    last_login?: string | null;
+    is_active?: boolean;
+    is_training_account?: boolean;
+    original_account_id?: number | null;
+    original_account_email?: string | null;
+    original_account_username?: string | null;
+    balance?: string | null;
   }): User => {
     return {
       id: apiUser.id,
@@ -79,11 +89,16 @@ function UserManagement() {
       invitation_code: apiUser.invitation_code,
       role: apiUser.role,
       created_by: apiUser.created_by_username || null,
-      status: apiUser.is_active ? 'Active' : 'Inactive',
+      status: apiUser.is_active !== false ? 'Active' : 'Inactive',
       date_joined: apiUser.date_joined,
-      last_login: apiUser.last_login,
+      last_login: apiUser.last_login || null,
       level_id: apiUser.level?.id || null,
       level_name: apiUser.level?.level_name || null,
+      is_training_account: apiUser.is_training_account || false,
+      original_account_id: apiUser.original_account_id || null,
+      original_account_email: apiUser.original_account_email || null,
+      original_account_username: apiUser.original_account_username || null,
+      balance: apiUser.balance || null,
     };
   };
 
@@ -105,12 +120,17 @@ function UserManagement() {
       status: string;
       created_at: string;
     } | null;
-    created_by: string;
-    created_by_id: number;
-    created_by_email: string;
-    status: string;
+    created_by?: string;
+    created_by_id?: number;
+    created_by_email?: string;
+    status?: string;
     date_joined: string;
-    last_login: string | null;
+    last_login?: string | null;
+    is_training_account?: boolean;
+    original_account_id?: number | null;
+    original_account_email?: string | null;
+    original_account_username?: string | null;
+    balance?: string | null;
   }): User => {
     return {
       id: apiUser.id,
@@ -122,9 +142,14 @@ function UserManagement() {
       created_by: apiUser.created_by || null,
       status: apiUser.status === 'Active' ? 'Active' : 'Inactive',
       date_joined: apiUser.date_joined,
-      last_login: apiUser.last_login,
+      last_login: apiUser.last_login || null,
       level_id: apiUser.level?.id || null,
       level_name: apiUser.level?.level_name || null,
+      is_training_account: apiUser.is_training_account || false,
+      original_account_id: apiUser.original_account_id || null,
+      original_account_email: apiUser.original_account_email || null,
+      original_account_username: apiUser.original_account_username || null,
+      balance: apiUser.balance || null,
     };
   };
 
@@ -136,11 +161,13 @@ function UserManagement() {
       let response;
       if (isAdmin) {
         response = await api.getAdminAgentUsers();
-        const convertedUsers = response.users.map(convertAdminApiUserToLocal);
+        const usersList = response.flat_list || response.users || [];
+        const convertedUsers = usersList.map(convertAdminApiUserToLocal);
         setUsers(convertedUsers);
       } else {
         response = await api.getMyUsers();
-        const convertedUsers = response.users.map(convertApiUserToLocal);
+        const usersList = response.flat_list || response.users || [];
+        const convertedUsers = usersList.map(convertApiUserToLocal);
         setUsers(convertedUsers);
       }
     } catch (err) {
@@ -164,11 +191,13 @@ function UserManagement() {
         let response;
         if (adminStatus) {
           response = await api.getAdminAgentUsers();
-          const convertedUsers = response.users.map(convertAdminApiUserToLocal);
+          const usersList = response.flat_list || response.users || [];
+          const convertedUsers = usersList.map(convertAdminApiUserToLocal);
           setUsers(convertedUsers);
         } else {
           response = await api.getMyUsers();
-          const convertedUsers = response.users.map(convertApiUserToLocal);
+          const usersList = response.flat_list || response.users || [];
+          const convertedUsers = usersList.map(convertApiUserToLocal);
           setUsers(convertedUsers);
         }
       } catch (err) {
@@ -322,7 +351,7 @@ function UserManagement() {
       email: '',
       login_password: '',
       confirm_login_password: '',
-      original_account_id: '',
+      original_account_refer_code: '',
       withdraw_password: '',
       confirm_withdraw_password: '',
     });
@@ -338,7 +367,7 @@ function UserManagement() {
       email: '',
       login_password: '',
       confirm_login_password: '',
-      original_account_id: '',
+      original_account_refer_code: '',
       withdraw_password: '',
       confirm_withdraw_password: '',
     });
@@ -359,29 +388,82 @@ function UserManagement() {
     }
   };
 
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhoneNumber = (phone: string): boolean => {
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess('');
     setFieldErrors({});
 
-    if (formData.login_password !== formData.confirm_login_password) {
-      setFieldErrors({
-        confirm_login_password: ['Passwords do not match'],
-      });
-      return;
+    const errors: Record<string, string[]> = {};
+
+    // Username validation
+    if (!formData.username || formData.username.trim() === '') {
+      errors.username = ['Username is required'];
+    } else if (formData.username.trim().length < 3) {
+      errors.username = ['Username must be at least 3 characters long'];
+    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username.trim())) {
+      errors.username = ['Username can only contain letters, numbers, and underscores'];
     }
 
-    if (formData.withdraw_password !== formData.confirm_withdraw_password) {
-      setFieldErrors({
-        confirm_withdraw_password: ['Withdraw passwords do not match'],
-      });
-      return;
+    // Email validation
+    if (!formData.email || formData.email.trim() === '') {
+      errors.email = ['Email is required'];
+    } else if (!validateEmail(formData.email.trim())) {
+      errors.email = ['Please enter a valid email address'];
     }
 
-    if (!formData.original_account_id || isNaN(Number(formData.original_account_id))) {
-      setFieldErrors({
-        original_account_id: ['Please enter a valid original account ID'],
-      });
+    // Phone number validation
+    if (!formData.phone_number || formData.phone_number.trim() === '') {
+      errors.phone_number = ['Phone number is required'];
+    } else if (!validatePhoneNumber(formData.phone_number.trim())) {
+      errors.phone_number = ['Please enter a valid phone number (at least 10 digits)'];
+    }
+
+    // Login password validation
+    if (!formData.login_password || formData.login_password === '') {
+      errors.login_password = ['Login password is required'];
+    } else if (formData.login_password.length < 6) {
+      errors.login_password = ['Login password must be at least 6 characters long'];
+    }
+
+    // Confirm login password validation
+    if (!formData.confirm_login_password || formData.confirm_login_password === '') {
+      errors.confirm_login_password = ['Please confirm your login password'];
+    } else if (formData.login_password !== formData.confirm_login_password) {
+      errors.confirm_login_password = ['Login passwords do not match'];
+    }
+
+    // Original account refer code validation
+    if (!formData.original_account_refer_code || formData.original_account_refer_code.trim() === '') {
+      errors.original_account_refer_code = ['Original account refer code is required'];
+    }
+
+    // Withdraw password validation
+    if (!formData.withdraw_password || formData.withdraw_password === '') {
+      errors.withdraw_password = ['Withdraw password is required'];
+    } else if (formData.withdraw_password.length < 4) {
+      errors.withdraw_password = ['Withdraw password must be at least 4 characters long'];
+    }
+
+    // Confirm withdraw password validation
+    if (!formData.confirm_withdraw_password || formData.confirm_withdraw_password === '') {
+      errors.confirm_withdraw_password = ['Please confirm your withdraw password'];
+    } else if (formData.withdraw_password !== formData.confirm_withdraw_password) {
+      errors.confirm_withdraw_password = ['Withdraw passwords do not match'];
+    }
+
+    // If there are validation errors, set them and return
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -394,7 +476,7 @@ function UserManagement() {
         phone_number: string;
         login_password: string;
         confirm_login_password: string;
-        original_account_id: number;
+        original_account_refer_code: string;
         withdraw_password: string;
         confirm_withdraw_password: string;
       } = {
@@ -403,7 +485,7 @@ function UserManagement() {
         phone_number: formData.phone_number,
         login_password: formData.login_password,
         confirm_login_password: formData.confirm_login_password,
-        original_account_id: parseInt(formData.original_account_id),
+        original_account_refer_code: formData.original_account_refer_code.trim(),
         withdraw_password: formData.withdraw_password,
         confirm_withdraw_password: formData.confirm_withdraw_password,
       };
@@ -499,10 +581,13 @@ function UserManagement() {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Phone Number</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Invitation Code</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Original Account</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Balance</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created By</th>
@@ -517,10 +602,34 @@ function UserManagement() {
                   paginatedUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{user.id}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {user.is_training_account ? (
+                          <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                            Training
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                            Original
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{user.username}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{user.email}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{user.phone_number}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-mono">{user.invitation_code}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                        {user.is_training_account && user.original_account_username ? (
+                          <div className="flex flex-col">
+                            <span className="font-medium">{user.original_account_username}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{user.original_account_email}</span>
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                        {user.balance ? `$${parseFloat(user.balance).toFixed(2)}` : '-'}
+                      </td>
                       <td className="px-4 py-3 text-sm">
                         <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                           {user.role}
@@ -569,7 +678,7 @@ function UserManagement() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={15} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       No users found
                     </td>
                   </tr>
@@ -714,22 +823,22 @@ function UserManagement() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Original Account ID *
+                    Original Account Refer Code *
                   </label>
                   <input
-                    type="number"
-                    name="original_account_id"
-                    value={formData.original_account_id}
+                    type="text"
+                    name="original_account_refer_code"
+                    value={formData.original_account_refer_code}
                     onChange={handleChange}
                     required
                     className={`w-full px-4 py-2 border rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent ${
-                      fieldErrors.original_account_id ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                      fieldErrors.original_account_refer_code ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                     }`}
-                    placeholder="Enter original account ID"
+                    placeholder="Enter original account refer code"
                   />
-                  {fieldErrors.original_account_id && Array.isArray(fieldErrors.original_account_id) && fieldErrors.original_account_id.length > 0 && (
+                  {fieldErrors.original_account_refer_code && Array.isArray(fieldErrors.original_account_refer_code) && fieldErrors.original_account_refer_code.length > 0 && (
                     <div className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {fieldErrors.original_account_id.map((err, idx) => (
+                      {fieldErrors.original_account_refer_code.map((err, idx) => (
                         <div key={idx}>{err}</div>
                       ))}
                     </div>
@@ -832,19 +941,19 @@ function UserManagement() {
                   )}
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-2 pt-4">
                   <button
                     type="button"
                     onClick={handleCloseModal}
                     disabled={formLoading}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={formLoading}
-                    className="flex-1 px-4 py-2 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-2 py-1.5 text-xs bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading ? 'Creating...' : 'Create Training Account'}
                   </button>

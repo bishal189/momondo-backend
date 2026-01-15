@@ -271,7 +271,8 @@ export const api = {
   },
 
   async getMyUsers(): Promise<{
-    users: Array<{
+    users?: Array<any>;
+    flat_list?: Array<{
       id: number;
       email: string;
       username: string;
@@ -289,14 +290,24 @@ export const api = {
         status: string;
         created_at: string;
       } | null;
-      created_by: number;
-      created_by_email: string;
-      created_by_username: string;
+      created_by?: number;
+      created_by_email?: string;
+      created_by_username?: string;
       date_joined: string;
-      last_login: string | null;
-      is_active: boolean;
+      last_login?: string | null;
+      is_active?: boolean;
+      is_training_account?: boolean;
+      original_account_id?: number | null;
+      original_account_email?: string | null;
+      original_account_username?: string | null;
+      balance?: string | null;
     }>;
     count: number;
+    summary?: {
+      original_accounts: number;
+      training_accounts: number;
+      total: number;
+    };
   }> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/my-users/`, {
       method: 'GET',
@@ -311,7 +322,8 @@ export const api = {
   },
 
   async getAdminAgentUsers(): Promise<{
-    users: Array<{
+    users?: Array<any>;
+    flat_list?: Array<{
       id: number;
       username: string;
       email: string;
@@ -329,14 +341,24 @@ export const api = {
         status: string;
         created_at: string;
       } | null;
-      created_by: string;
-      created_by_id: number;
-      created_by_email: string;
-      status: string;
+      created_by?: string;
+      created_by_id?: number;
+      created_by_email?: string;
+      status?: string;
       date_joined: string;
-      last_login: string | null;
+      last_login?: string | null;
+      is_training_account?: boolean;
+      original_account_id?: number | null;
+      original_account_email?: string | null;
+      original_account_username?: string | null;
+      balance?: string | null;
     }>;
     count: number;
+    summary?: {
+      original_accounts: number;
+      training_accounts: number;
+      total: number;
+    };
   }> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/agents/users/`, {
       method: 'GET',
@@ -383,7 +405,7 @@ export const api = {
     phone_number: string;
     login_password: string;
     confirm_login_password: string;
-    original_account_id: number;
+    original_account_refer_code: string;
     withdraw_password: string;
     confirm_withdraw_password: string;
   }): Promise<any> {

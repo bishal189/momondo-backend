@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 interface Transaction {
   id: number;
@@ -113,12 +114,32 @@ const mockTransactions: Transaction[] = [
 ];
 
 function Transactions() {
-  const [transactions] = useState<Transaction[]>(mockTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [filterType, setFilterType] = useState<'All' | 'Debit' | 'Credit'>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Completed' | 'Pending' | 'Failed'>('All');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAgent, setIsAgent] = useState(false);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const roleData = await api.checkRole();
+        setIsAdmin(roleData.is_admin || roleData.role === 'ADMIN');
+        setIsAgent(roleData.is_agent || roleData.role === 'AGENT');
+      } catch {
+        setIsAdmin(false);
+        setIsAgent(false);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
+
+  const canApproveReject = isAdmin || isAgent;
 
   const filteredTransactions = transactions.filter(
     (transaction) => {
@@ -173,6 +194,44 @@ function Transactions() {
         {sign}${amount.toFixed(2)}
       </span>
     );
+  };
+
+  const handleApprove = async (transactionId: number) => {
+    setActionLoading(transactionId);
+    try {
+      // TODO: Replace with actual API call when endpoint is available
+      // await api.approveTransaction(transactionId);
+      
+      // Update local state for now
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === transactionId ? { ...t, status: 'Completed' as const } : t
+        )
+      );
+    } catch (error) {
+      console.error('Failed to approve transaction:', error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (transactionId: number) => {
+    setActionLoading(transactionId);
+    try {
+      // TODO: Replace with actual API call when endpoint is available
+      // await api.rejectTransaction(transactionId);
+      
+      // Update local state for now
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === transactionId ? { ...t, status: 'Failed' as const } : t
+        )
+      );
+    } catch (error) {
+      console.error('Failed to reject transaction:', error);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
@@ -251,6 +310,9 @@ function Transactions() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Remark</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created At</th>
+                  {canApproveReject && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -268,11 +330,31 @@ function Transactions() {
                       </td>
                       <td className="px-4 py-3 text-sm">{getStatusBadge(transaction.status)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{transaction.createdAt}</td>
+                      {canApproveReject && (
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApprove(transaction.id)}
+                              disabled={actionLoading === transaction.id}
+                              className="px-3 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === transaction.id ? 'Processing...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => handleReject(transaction.id)}
+                              disabled={actionLoading === transaction.id}
+                              className="px-3 py-1 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === transaction.id ? 'Processing...' : 'Reject'}
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={canApproveReject ? 10 : 9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       No transactions found
                     </td>
                   </tr>

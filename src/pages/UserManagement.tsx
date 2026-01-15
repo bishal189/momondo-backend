@@ -29,6 +29,7 @@ function UserManagement() {
     email: '',
     login_password: '',
     confirm_login_password: '',
+    original_account_id: '',
     withdraw_password: '',
     confirm_withdraw_password: '',
   });
@@ -321,6 +322,7 @@ function UserManagement() {
       email: '',
       login_password: '',
       confirm_login_password: '',
+      original_account_id: '',
       withdraw_password: '',
       confirm_withdraw_password: '',
     });
@@ -336,6 +338,7 @@ function UserManagement() {
       email: '',
       login_password: '',
       confirm_login_password: '',
+      original_account_id: '',
       withdraw_password: '',
       confirm_withdraw_password: '',
     });
@@ -375,15 +378,23 @@ function UserManagement() {
       return;
     }
 
+    if (!formData.original_account_id || isNaN(Number(formData.original_account_id))) {
+      setFieldErrors({
+        original_account_id: ['Please enter a valid original account ID'],
+      });
+      return;
+    }
+
     setFormLoading(true);
 
     try {
-      const userData: {
+      const trainingData: {
         username: string;
         email: string;
         phone_number: string;
         login_password: string;
         confirm_login_password: string;
+        original_account_id: number;
         withdraw_password: string;
         confirm_withdraw_password: string;
       } = {
@@ -392,12 +403,13 @@ function UserManagement() {
         phone_number: formData.phone_number,
         login_password: formData.login_password,
         confirm_login_password: formData.confirm_login_password,
+        original_account_id: parseInt(formData.original_account_id),
         withdraw_password: formData.withdraw_password,
         confirm_withdraw_password: formData.confirm_withdraw_password,
       };
 
-      await api.createUserByAgent(userData);
-      setSuccess('User created successfully!');
+      await api.createTrainingAccount(trainingData);
+      setSuccess('Training account created successfully!');
       setFieldErrors({});
 
       setTimeout(() => {
@@ -420,7 +432,7 @@ function UserManagement() {
         setFieldErrors(normalizedErrors);
       } else {
         setFieldErrors({
-          _general: [err instanceof Error ? err.message : 'Failed to create user'],
+          _general: [err instanceof Error ? err.message : 'Failed to create training account'],
         });
       }
     } finally {
@@ -437,7 +449,7 @@ function UserManagement() {
             onClick={handleOpenModal}
             className="px-4 py-2 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
           >
-            Create User
+            Create Training Account
           </button>
         </div>
 
@@ -602,7 +614,7 @@ function UserManagement() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create User</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Training Account</h2>
                 <button
                   onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
@@ -694,6 +706,30 @@ function UserManagement() {
                   {fieldErrors.phone_number && Array.isArray(fieldErrors.phone_number) && fieldErrors.phone_number.length > 0 && (
                     <div className="mt-1 text-sm text-red-600 dark:text-red-400">
                       {fieldErrors.phone_number.map((err, idx) => (
+                        <div key={idx}>{err}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Original Account ID *
+                  </label>
+                  <input
+                    type="number"
+                    name="original_account_id"
+                    value={formData.original_account_id}
+                    onChange={handleChange}
+                    required
+                    className={`w-full px-4 py-2 border rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent ${
+                      fieldErrors.original_account_id ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="Enter original account ID"
+                  />
+                  {fieldErrors.original_account_id && Array.isArray(fieldErrors.original_account_id) && fieldErrors.original_account_id.length > 0 && (
+                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {fieldErrors.original_account_id.map((err, idx) => (
                         <div key={idx}>{err}</div>
                       ))}
                     </div>
@@ -810,7 +846,7 @@ function UserManagement() {
                     disabled={formLoading}
                     className="flex-1 px-4 py-2 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {formLoading ? 'Creating...' : 'Create User'}
+                    {formLoading ? 'Creating...' : 'Create Training Account'}
                   </button>
                 </div>
               </form>

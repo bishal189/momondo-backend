@@ -18,7 +18,8 @@ interface User {
   original_account_id?: number | null;
   original_account_email?: string | null;
   original_account_username?: string | null;
-  balance?: string | null;
+  balance?: number | null;
+  account_type?: string;
 }
 
 function UserManagement() {
@@ -50,6 +51,56 @@ function UserManagement() {
   const [levelAssignLoading, setLevelAssignLoading] = useState(false);
   const [levelError, setLevelError] = useState('');
   const itemsPerPage = 10;
+
+  const convertTableDataToLocal = (tableData: {
+    id: number;
+    account_type: string;
+    username: string;
+    email: string;
+    phone_number: string;
+    invitation_code: string;
+    original_account: {
+      id: number;
+      username: string;
+      email: string;
+    } | null;
+    balance: number;
+    role: string;
+    level: {
+      id: number;
+      name: string;
+    } | null;
+    created_by: {
+      id: number;
+      username: string;
+      email: string;
+    } | null;
+    status: string;
+    date_joined: string;
+    last_login: string | null;
+    is_training_account: boolean;
+  }): User => {
+    return {
+      id: tableData.id,
+      username: tableData.username,
+      email: tableData.email,
+      phone_number: tableData.phone_number,
+      invitation_code: tableData.invitation_code,
+      role: tableData.role,
+      created_by: tableData.created_by?.username || null,
+      status: tableData.status === 'Active' ? 'Active' : 'Inactive',
+      date_joined: tableData.date_joined,
+      last_login: tableData.last_login || null,
+      level_id: tableData.level?.id || null,
+      level_name: tableData.level?.name || null,
+      is_training_account: tableData.is_training_account || false,
+      original_account_id: tableData.original_account?.id || null,
+      original_account_email: tableData.original_account?.email || null,
+      original_account_username: tableData.original_account?.username || null,
+      balance: tableData.balance || null,
+      account_type: tableData.account_type || undefined,
+    };
+  };
 
   const convertApiUserToLocal = (apiUser: {
     id: number;
@@ -98,7 +149,7 @@ function UserManagement() {
       original_account_id: apiUser.original_account_id || null,
       original_account_email: apiUser.original_account_email || null,
       original_account_username: apiUser.original_account_username || null,
-      balance: apiUser.balance || null,
+      balance: apiUser.balance ? parseFloat(apiUser.balance) : null,
     };
   };
 
@@ -149,7 +200,7 @@ function UserManagement() {
       original_account_id: apiUser.original_account_id || null,
       original_account_email: apiUser.original_account_email || null,
       original_account_username: apiUser.original_account_username || null,
-      balance: apiUser.balance || null,
+      balance: apiUser.balance ? parseFloat(apiUser.balance) : null,
     };
   };
 
@@ -161,14 +212,24 @@ function UserManagement() {
       let response;
       if (isAdmin) {
         response = await api.getAdminAgentUsers();
-        const usersList = response.flat_list || response.users || [];
-        const convertedUsers = usersList.map(convertAdminApiUserToLocal);
-        setUsers(convertedUsers);
+        if (response.table_data && response.table_data.length > 0) {
+          const convertedUsers = response.table_data.map(convertTableDataToLocal);
+          setUsers(convertedUsers);
+        } else {
+          const usersList = response.flat_list || response.users || [];
+          const convertedUsers = usersList.map(convertAdminApiUserToLocal);
+          setUsers(convertedUsers);
+        }
       } else {
         response = await api.getMyUsers();
-        const usersList = response.flat_list || response.users || [];
-        const convertedUsers = usersList.map(convertApiUserToLocal);
-        setUsers(convertedUsers);
+        if (response.table_data && response.table_data.length > 0) {
+          const convertedUsers = response.table_data.map(convertTableDataToLocal);
+          setUsers(convertedUsers);
+        } else {
+          const usersList = response.flat_list || response.users || [];
+          const convertedUsers = usersList.map(convertApiUserToLocal);
+          setUsers(convertedUsers);
+        }
       }
     } catch (err) {
       setListError(err instanceof Error ? err.message : 'Failed to fetch users');
@@ -191,14 +252,24 @@ function UserManagement() {
         let response;
         if (adminStatus) {
           response = await api.getAdminAgentUsers();
-          const usersList = response.flat_list || response.users || [];
-          const convertedUsers = usersList.map(convertAdminApiUserToLocal);
-          setUsers(convertedUsers);
+          if (response.table_data && response.table_data.length > 0) {
+            const convertedUsers = response.table_data.map(convertTableDataToLocal);
+            setUsers(convertedUsers);
+          } else {
+            const usersList = response.flat_list || response.users || [];
+            const convertedUsers = usersList.map(convertAdminApiUserToLocal);
+            setUsers(convertedUsers);
+          }
         } else {
           response = await api.getMyUsers();
-          const usersList = response.flat_list || response.users || [];
-          const convertedUsers = usersList.map(convertApiUserToLocal);
-          setUsers(convertedUsers);
+          if (response.table_data && response.table_data.length > 0) {
+            const convertedUsers = response.table_data.map(convertTableDataToLocal);
+            setUsers(convertedUsers);
+          } else {
+            const usersList = response.flat_list || response.users || [];
+            const convertedUsers = usersList.map(convertApiUserToLocal);
+            setUsers(convertedUsers);
+          }
         }
       } catch (err) {
         setListError(err instanceof Error ? err.message : 'Failed to fetch users');
@@ -603,7 +674,7 @@ function UserManagement() {
                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{user.id}</td>
                       <td className="px-4 py-3 text-sm">
-                        {user.is_training_account ? (
+                        {user.account_type === 'Training' || user.is_training_account ? (
                           <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
                             Training
                           </span>
@@ -628,7 +699,7 @@ function UserManagement() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                        {user.balance ? `$${parseFloat(user.balance).toFixed(2)}` : '-'}
+                        {user.balance !== null && user.balance !== undefined ? `$${user.balance.toFixed(2)}` : '-'}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">

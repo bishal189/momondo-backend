@@ -271,37 +271,36 @@ export const api = {
   },
 
   async getMyUsers(): Promise<{
-    users?: Array<any>;
-    flat_list?: Array<{
+    table_data?: Array<{
       id: number;
-      email: string;
+      account_type: string;
       username: string;
+      email: string;
       phone_number: string;
       invitation_code: string;
-      role: string;
-      level?: {
+      original_account: {
         id: number;
-        level: number;
-        level_name: string;
-        required_points: number;
-        commission_rate: string;
-        min_orders: number;
-        benefits: string;
-        status: string;
-        created_at: string;
+        username: string;
+        email: string;
       } | null;
-      created_by?: number;
-      created_by_email?: string;
-      created_by_username?: string;
+      balance: number;
+      role: string;
+      level: {
+        id: number;
+        name: string;
+      } | null;
+      created_by: {
+        id: number;
+        username: string;
+        email: string;
+      } | null;
+      status: string;
       date_joined: string;
-      last_login?: string | null;
-      is_active?: boolean;
-      is_training_account?: boolean;
-      original_account_id?: number | null;
-      original_account_email?: string | null;
-      original_account_username?: string | null;
-      balance?: string | null;
+      last_login: string | null;
+      is_training_account: boolean;
     }>;
+    users?: Array<any>;
+    flat_list?: Array<any>;
     count: number;
     summary?: {
       original_accounts: number;
@@ -322,37 +321,36 @@ export const api = {
   },
 
   async getAdminAgentUsers(): Promise<{
-    users?: Array<any>;
-    flat_list?: Array<{
+    table_data?: Array<{
       id: number;
+      account_type: string;
       username: string;
       email: string;
       phone_number: string;
       invitation_code: string;
-      role: string;
-      level?: {
+      original_account: {
         id: number;
-        level: number;
-        level_name: string;
-        required_points: number;
-        commission_rate: string;
-        min_orders: number;
-        benefits: string;
-        status: string;
-        created_at: string;
+        username: string;
+        email: string;
       } | null;
-      created_by?: string;
-      created_by_id?: number;
-      created_by_email?: string;
-      status?: string;
+      balance: number;
+      role: string;
+      level: {
+        id: number;
+        name: string;
+      } | null;
+      created_by: {
+        id: number;
+        username: string;
+        email: string;
+      } | null;
+      status: string;
       date_joined: string;
-      last_login?: string | null;
-      is_training_account?: boolean;
-      original_account_id?: number | null;
-      original_account_email?: string | null;
-      original_account_username?: string | null;
-      balance?: string | null;
+      last_login: string | null;
+      is_training_account: boolean;
     }>;
+    users?: Array<any>;
+    flat_list?: Array<any>;
     count: number;
     summary?: {
       original_accounts: number;

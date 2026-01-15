@@ -569,16 +569,17 @@ function UserManagement() {
         handleCloseModal();
         fetchUsers();
       }, 1500);
-    } catch (err) {
-      if (err instanceof Error && (err as any).errors) {
-        const errors = (err as any).errors;
+    } catch (err: any) {
+      setFieldErrors({});
+
+      if (err.errors) {
         const normalizedErrors: Record<string, string[]> = {};
 
-        Object.keys(errors).forEach((key) => {
-          if (Array.isArray(errors[key])) {
-            normalizedErrors[key] = errors[key];
-          } else if (typeof errors[key] === 'string') {
-            normalizedErrors[key] = [errors[key]];
+        Object.keys(err.errors).forEach((key) => {
+          if (Array.isArray(err.errors[key])) {
+            normalizedErrors[key] = err.errors[key];
+          } else if (typeof err.errors[key] === 'string') {
+            normalizedErrors[key] = [err.errors[key]];
           }
         });
 

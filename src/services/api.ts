@@ -243,6 +243,38 @@ export const api = {
     return response.json();
   },
 
+  async agentActivateUser(userId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/users/${userId}/activate/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to activate user');
+    }
+
+    return response.json();
+  },
+
+  async agentDeactivateUser(userId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/users/${userId}/deactivate/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to deactivate user');
+    }
+
+    return response.json();
+  },
+
   async getAgentUsers(): Promise<{
     agents: Array<{
       id: number;

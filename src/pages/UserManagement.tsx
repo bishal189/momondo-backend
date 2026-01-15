@@ -325,7 +325,11 @@ function UserManagement() {
     setActionLoading(userId);
 
     try {
-      await api.activateUser(userId);
+      if (isAdmin) {
+        await api.activateUser(userId);
+      } else {
+        await api.agentActivateUser(userId);
+      }
       await fetchUsers();
     } catch (err) {
       console.error('Error activating user:', err);
@@ -339,7 +343,11 @@ function UserManagement() {
     setActionLoading(userId);
 
     try {
-      await api.deactivateUser(userId);
+      if (isAdmin) {
+        await api.deactivateUser(userId);
+      } else {
+        await api.agentDeactivateUser(userId);
+      }
       await fetchUsers();
     } catch (err) {
       console.error('Error deactivating user:', err);

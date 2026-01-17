@@ -839,6 +839,31 @@ export const api = {
 
     return response.json();
   },
+
+  async addBalance(transactionData: {
+    member_account: number;
+    type: 'CREDIT' | 'DEBIT';
+    amount: number;
+    remark_type: string;
+    remark: string;
+  }): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/transaction/add-balance/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(transactionData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to add balance');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
 };
 
 export const authStorage = {

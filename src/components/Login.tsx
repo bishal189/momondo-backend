@@ -17,6 +17,15 @@ function Login() {
     try {
       const response = await api.login({ email, password });
       
+      if (response.user) {
+        const userRole = response.user.role?.toUpperCase();
+        
+        if (userRole === 'USER' || response.user.is_normal_user || (userRole !== 'AGENT' && userRole !== 'ADMIN')) {
+          authStorage.clearAuth();
+          throw new Error('Access denied. Only agents and administrators can login.');
+        }
+      }
+      
       if (response.access) {
         authStorage.setToken(response.access);
       }

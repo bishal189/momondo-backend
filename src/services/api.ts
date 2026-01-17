@@ -8,6 +8,15 @@ export interface LoginRequest {
 export interface LoginResponse {
   access: string;
   refresh: string;
+  user?: {
+    id: number;
+    email: string;
+    username: string;
+    role: string;
+    is_admin: boolean;
+    is_agent: boolean;
+    is_normal_user: boolean;
+  };
 }
 
 export interface RefreshTokenResponse {

@@ -55,6 +55,26 @@ export interface LoginActivitiesResponse {
   results: LoginActivity[];
 }
 
+export interface Transaction {
+  id: number;
+  transaction_id: string;
+  member_account: number;
+  member_account_email: string;
+  member_account_username: string;
+  type: string;
+  amount: string;
+  remark_type: string;
+  remark: string;
+  status: string;
+  created_at: string;
+}
+
+export interface TransactionsResponse {
+  transactions: Transaction[];
+  count: number;
+  user_role: string;
+}
+
 export interface Level {
   id: number;
   level: number;
@@ -858,6 +878,63 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const error = new Error(errorData.message || errorData.detail || 'Failed to add balance');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async getAdminAgentTransactions(): Promise<TransactionsResponse> {
+    const url = `${API_BASE_URL}/api/transaction/admin-agent/`;
+    
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Transaction API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        url,
+      });
+      throw new Error(errorData.message || errorData.detail || `Failed to fetch transactions (${response.status})`);
+    }
+
+    return response.json();
+  },
+
+  async approveTransaction(transactionId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/transaction/${transactionId}/approve/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to approve transaction');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async rejectTransaction(transactionId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/transaction/${transactionId}/reject/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to reject transaction');
       (error as any).errors = errorData;
       throw error;
     }

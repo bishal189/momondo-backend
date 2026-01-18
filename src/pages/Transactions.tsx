@@ -88,7 +88,6 @@ function Transactions() {
       setTotalCount(response.count);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
-      console.error('Error fetching transactions:', err);
     } finally {
       setLoading(false);
     }
@@ -156,11 +155,8 @@ function Transactions() {
     setActionLoading(transactionId);
     try {
       await api.approveTransaction(transactionId);
-
       await fetchTransactions();
     } catch (error) {
-      console.log(error,'error');
-      alert(error instanceof Error ? error.message : 'Failed to approve transaction');
     } finally {
       setActionLoading(null);
     }
@@ -172,8 +168,6 @@ function Transactions() {
       await api.rejectTransaction(transactionId);
       await fetchTransactions();
     } catch (error) {
-      console.error('Failed to reject transaction:', error);
-      alert(error instanceof Error ? error.message : 'Failed to reject transaction');
     } finally {
       setActionLoading(null);
     }

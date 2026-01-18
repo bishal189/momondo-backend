@@ -208,6 +208,30 @@ export const api = {
     return response.json();
   },
 
+  async updateAgentProfile(agentId: number, agentData: {
+    username: string;
+    email: string;
+    phone_number: string;
+    login_password: string;
+  }): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/agents/${agentId}/profile/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(agentData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to update agent profile');
+      (error as any).errors = errorData.errors || errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
   async activateUser(userId: number): Promise<{
     message: string;
     user: {

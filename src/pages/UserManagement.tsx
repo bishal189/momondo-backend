@@ -821,6 +821,13 @@ function UserManagement() {
                           >
                             Level
                           </button>
+                          <button
+                            onClick={() => {}}
+                            className="px-2 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors whitespace-nowrap"
+                            title="Reset Order"
+                          >
+                            Reset Order
+                          </button>
                           {user.status === 'Active' ? (
                             <button
                               onClick={() => handleDeactivate(user.id)}

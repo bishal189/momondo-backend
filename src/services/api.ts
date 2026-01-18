@@ -965,6 +965,24 @@ export const api = {
 
     return response.json();
   },
+
+  async resetUserOrder(userId: number, levelId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/reset/user/${userId}/level/${levelId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to reset order');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
 };
 
 export const authStorage = {

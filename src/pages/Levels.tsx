@@ -486,9 +486,9 @@ function Levels() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Required Points</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Minimum Balance</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Commission Rate</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Min Orders</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Number of Orders</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Benefits</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created At</th>
@@ -662,7 +662,7 @@ function Levels() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Required Points
+                      Minimum Balance
                     </label>
                     <input
                       type="number"
@@ -694,7 +694,7 @@ function Levels() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Minimum Orders
+                      Number of Orders
                     </label>
                     <input
                       type="number"
@@ -794,7 +794,7 @@ function Levels() {
                   <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                     <p><span className="font-medium">Level Number:</span> {levelToDelete.levelNumber}</p>
                     <p><span className="font-medium">Level Name:</span> {levelToDelete.levelName}</p>
-                    <p><span className="font-medium">Required Points:</span> {levelToDelete.requiredPoints.toLocaleString()}</p>
+                    <p><span className="font-medium">Minimum Balance:</span> {levelToDelete.requiredPoints.toLocaleString()}</p>
                     <p><span className="font-medium">Commission Rate:</span> {levelToDelete.commissionRate}%</p>
                   </div>
                 </div>
@@ -891,7 +891,7 @@ function Levels() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Required Points
+                      Minimum Balance
                     </label>
                     <input
                       type="number"
@@ -923,7 +923,7 @@ function Levels() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Minimum Orders
+                      Number of Orders
                     </label>
                     <input
                       type="number"

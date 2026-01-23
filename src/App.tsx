@@ -12,6 +12,7 @@ import Agents from './pages/Agents';
 import UserManagement from './pages/UserManagement';
 import Transactions from './pages/Transactions';
 import SetupOrders from './pages/SetupOrders';
+import UserOrders from './pages/UserOrders';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="products" element={<Products />} />
           <Route path="agents" element={<Agents />} />
           <Route path="user-management" element={<UserManagement />} />
+          <Route path="user-management/:userId/orders" element={<UserOrders />} />
           <Route path="transactions" element={<Transactions />} />
         </Route>
         <Route path="/" element={<Navigate to="/login" replace />} />

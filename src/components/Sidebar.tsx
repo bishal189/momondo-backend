@@ -17,7 +17,7 @@ const menuItems: MenuItem[] = [
     icon: 'grid',
   },
   { id: 'levels', label: 'Levels', icon: 'layers' },
-  { id: 'users', label: 'Users', icon: 'users' },
+  // { id: 'users', label: 'Users', icon: 'users' },
   { id: 'login-activities', label: 'Login Activities', icon: 'chart' },
   {
     id: 'products',

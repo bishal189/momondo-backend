@@ -848,6 +848,25 @@ export const api = {
     return response.json();
   },
 
+  async insertProductAtPosition(productId: number, position: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/${productId}/position/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ position }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to insert product at position');
+      (error as any).errors = errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
   async getLevelProducts(levelId: number): Promise<{
     level: {
       id: number;
@@ -979,6 +998,41 @@ export const api = {
       const error = new Error(errorData.message || errorData.detail || 'Failed to reset order');
       (error as any).errors = errorData;
       throw error;
+    }
+
+    return response.json();
+  },
+
+  async getUserProducts(userId: number): Promise<{
+    user_id: number;
+    username: string;
+    min_orders: number;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/products/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch user products');
+    }
+
+    return response.json();
+  },
+
+  async getUserCompletedCount(userId: number): Promise<{
+    user_id: number;
+    username: string;
+    completed: number;
+    min_orders: number;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/completed-count/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch completed count');
     }
 
     return response.json();

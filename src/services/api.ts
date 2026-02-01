@@ -162,6 +162,51 @@ export const api = {
     return response.json();
   },
 
+  async getUserForEdit(userId: number): Promise<{
+    username: string;
+    email: string;
+    phone_number: string;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/users/${userId}/edit/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch user for edit');
+    }
+
+    return response.json();
+  },
+
+  async updateUser(
+    userId: number,
+    data: {
+      username: string;
+      email: string;
+      phone_number: string;
+      new_password?: string;
+      confirm_new_password?: string;
+    }
+  ): Promise<{ message?: string; user?: unknown }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/users/${userId}/edit/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to update user');
+      (error as any).errors = errorData.errors || errorData;
+      throw error;
+    }
+
+    return response.json();
+  },
+
   async checkRole(): Promise<{
     is_admin: boolean;
     is_agent: boolean;

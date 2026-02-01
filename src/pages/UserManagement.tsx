@@ -66,6 +66,18 @@ function UserManagement() {
   const [selectedUserForReset, setSelectedUserForReset] = useState<User | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    username: '',
+    email: '',
+    phone_number: '',
+    new_password: '',
+    confirm_new_password: '',
+  });
+  const [editUserLoading, setEditUserLoading] = useState(false);
+  const [editUserError, setEditUserError] = useState('');
+  const [editUserSuccess, setEditUserSuccess] = useState('');
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
@@ -556,6 +568,118 @@ function UserManagement() {
     navigate(`/dashboard/user-management/${user.id}/orders`);
   };
 
+  const handleOpenEditUserModal = (user: User) => {
+    setSelectedUserForEdit(user);
+    setEditFormData({
+      username: user.username,
+      email: user.email,
+      phone_number: user.phone_number,
+      new_password: '',
+      confirm_new_password: '',
+    });
+    setEditUserError('');
+    setEditUserSuccess('');
+    setIsEditUserModalOpen(true);
+  };
+
+  const handleCloseEditUserModal = () => {
+    setIsEditUserModalOpen(false);
+    setSelectedUserForEdit(null);
+    setEditFormData({ username: '', email: '', phone_number: '', new_password: '', confirm_new_password: '' });
+    setEditUserError('');
+    setEditUserSuccess('');
+  };
+
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
+    if (editUserError) setEditUserError('');
+  };
+
+  const handleSubmitEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserForEdit) return;
+
+    setEditUserError('');
+    setEditUserSuccess('');
+
+    const { username, email, phone_number, new_password, confirm_new_password } = editFormData;
+    const usernameTrim = username.trim();
+    const emailTrim = email.trim();
+    const phoneTrim = phone_number.trim();
+
+    if (!usernameTrim) {
+      setEditUserError('Username is required');
+      return;
+    }
+    if (!emailTrim) {
+      setEditUserError('Email is required');
+      return;
+    }
+    if (!validateEmail(emailTrim)) {
+      setEditUserError('Please enter a valid email address');
+      return;
+    }
+    if (!phoneTrim) {
+      setEditUserError('Phone number is required');
+      return;
+    }
+    if (!validatePhoneNumber(phoneTrim)) {
+      setEditUserError('Please enter a valid phone number (at least 10 digits)');
+      return;
+    }
+
+    if (new_password || confirm_new_password) {
+      if (new_password.length < 6) {
+        setEditUserError('New password must be at least 6 characters');
+        return;
+      }
+      if (new_password !== confirm_new_password) {
+        setEditUserError('New password and confirmation do not match');
+        return;
+      }
+    }
+
+    setEditUserLoading(true);
+    try {
+      const payload: {
+        username: string;
+        email: string;
+        phone_number: string;
+        new_password?: string;
+        confirm_new_password?: string;
+      } = {
+        username: usernameTrim,
+        email: emailTrim,
+        phone_number: phoneTrim,
+      };
+      if (new_password && confirm_new_password) {
+        payload.new_password = new_password;
+        payload.confirm_new_password = confirm_new_password;
+      }
+      await api.updateUser(selectedUserForEdit.id, payload);
+      setEditUserSuccess('User updated successfully.');
+      setTimeout(() => {
+        handleCloseEditUserModal();
+        fetchUsers();
+      }, 1200);
+    } catch (err: any) {
+      if (err.errors) {
+        const messages = Object.entries(err.errors)
+          .map(([key, value]) => {
+            if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
+            return `${key}: ${value}`;
+          })
+          .join('\n');
+        setEditUserError(messages);
+      } else {
+        setEditUserError(err instanceof Error ? err.message : 'Failed to update user');
+      }
+    } finally {
+      setEditUserLoading(false);
+    }
+  };
+
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -892,6 +1016,13 @@ function UserManagement() {
                             title="View Orders"
                           >
                             Orders
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditUserModal(user)}
+                            className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors whitespace-nowrap"
+                            title="Edit user or change password"
+                          >
+                            Edit / Change password
                           </button>
                           {user.status === 'Active' ? (
                             <button
@@ -1475,6 +1606,140 @@ function UserManagement() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditUserModalOpen && selectedUserForEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Edit User / Change Password
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleCloseEditUserModal}
+                  disabled={editUserLoading}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors disabled:opacity-50"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {editUserSuccess && (
+                <div className="mb-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg text-sm">
+                  {editUserSuccess}
+                </div>
+              )}
+              {editUserError && (
+                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+                  {editUserError}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmitEditUser} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={editFormData.username}
+                    onChange={handleEditFormChange}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Username"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editFormData.email}
+                    onChange={handleEditFormChange}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Email"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone_number"
+                    value={editFormData.phone_number}
+                    onChange={handleEditFormChange}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Phone number"
+                    required
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Change Password <span className="text-gray-500 font-normal">(optional)</span>
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        name="new_password"
+                        value={editFormData.new_password}
+                        onChange={handleEditFormChange}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Enter new password"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Confirm New Password
+                      </label>
+                      <input
+                        type="password"
+                        name="confirm_new_password"
+                        value={editFormData.confirm_new_password}
+                        onChange={handleEditFormChange}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Confirm new password"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-6 mt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={handleCloseEditUserModal}
+                    disabled={editUserLoading}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editUserLoading}
+                    className="px-4 py-2 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {editUserLoading ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

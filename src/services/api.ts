@@ -755,6 +755,8 @@ export const api = {
     search?: string;
     min_price?: string;
     max_price?: string;
+    limit?: number;
+    offset?: number;
   }): Promise<{ products: Array<{
     id: number;
     image: string | null;
@@ -778,6 +780,12 @@ export const api = {
     }
     if (params?.max_price) {
       queryParams.append('max_price', params.max_price);
+    }
+    if (params?.limit != null) {
+      queryParams.append('limit', String(params.limit));
+    }
+    if (params?.offset != null) {
+      queryParams.append('offset', String(params.offset));
     }
 
     const url = `${API_BASE_URL}/api/product/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;

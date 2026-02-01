@@ -47,6 +47,7 @@ function UserOrders() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,10 +74,19 @@ function UserOrders() {
   useEffect(() => {
     if (userId) {
       fetchUserProducts();
-      fetchProducts();
       fetchCompletedCount();
     }
-  }, [userId, searchTerm]);
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchProducts();
+    }
+  }, [userId, searchTerm, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (!userId) return;
@@ -118,7 +128,11 @@ function UserOrders() {
     setError('');
 
     try {
-      const params: { status?: 'ACTIVE'; search?: string } = { status: 'ACTIVE' };
+      const params: { status?: 'ACTIVE'; search?: string; limit: number; offset: number } = {
+        status: 'ACTIVE',
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+      };
       if (searchTerm.trim()) {
         params.search = searchTerm.trim();
       }
@@ -126,7 +140,7 @@ function UserOrders() {
       const response = await api.getProducts(params);
       const transformedProducts = response.products.map(transformApiProduct);
       setProducts(transformedProducts);
-      setCurrentPage(1);
+      setTotalCount(response.count ?? transformedProducts.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch products');
     } finally {
@@ -134,20 +148,15 @@ function UserOrders() {
     }
   };
 
-  const filteredProducts = products;
-
   const minOrders = completedCount?.min_orders || userProductsData?.min_orders || 0;
-  const totalBoxes = minOrders > 0 ? minOrders : products.length;
+  const totalBoxes = minOrders > 0 ? minOrders : totalCount;
   const completedProducts = completedCount?.completed || 0;
   const progressPercentage = totalBoxes > 0 ? (completedProducts / totalBoxes) * 100 : 0;
   
   const progressBoxes = Array.from({ length: totalBoxes }, (_, index) => index + 1);
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+  const paginatedProducts = products;
 
   const handleInsertClick = (product: Product) => {
     setSelectedProductForInsert(product);
@@ -296,7 +305,7 @@ function UserOrders() {
                 </svg>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+                {totalCount} product{totalCount !== 1 ? 's' : ''} found
               </div>
             </div>
           </div>
@@ -319,7 +328,7 @@ function UserOrders() {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">#</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Image</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Title</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
@@ -331,9 +340,9 @@ function UserOrders() {
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {paginatedProducts.length > 0 ? (
-                      paginatedProducts.map((product) => (
+                      paginatedProducts.map((product, index) => (
                         <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{product.id}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                           <td className="px-4 py-3 text-sm">
                             {product.image ? (
                               <img
@@ -365,7 +374,7 @@ function UserOrders() {
                           <td className="px-4 py-3 text-sm">
                             <button
                               onClick={() => handleInsertClick(product)}
-                              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                              className="px-3 py-1.5 text-xs bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium"
                             >
                               Insert
                             </button>
@@ -386,7 +395,7 @@ function UserOrders() {
               {totalPages > 1 && (
                 <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} product{totalCount !== 1 ? 's' : ''}
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -529,7 +538,7 @@ function UserOrders() {
                 <button
                   onClick={handleInsertAtPosition}
                   disabled={insertLoading || !selectedPosition}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {insertLoading ? 'Adding...' : 'Add'}
                 </button>

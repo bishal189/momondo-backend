@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
 interface Product {
@@ -169,6 +170,7 @@ function UserOrders() {
 
     try {
       await api.insertProductAtPosition(selectedProductForInsert.id, selectedPosition);
+      toast.success('Product added successfully.');
       handleCloseInsertModal();
       await fetchCompletedCount();
     } catch (err) {
@@ -227,74 +229,50 @@ function UserOrders() {
               Loading progress data...
             </div>
           ) : totalBoxes > 0 ? (
-            <div className="w-full flex gap-1 justify-start flex-nowrap overflow-x-auto pb-2">
-              {progressBoxes.map((boxNumber) => {
-                const isCompleted = boxNumber <= completedProducts;
-                const boxWidth = `calc((100% - ${(totalBoxes - 1) * 4}px) / ${totalBoxes})`;
-                return (
-                  <div
-                    key={boxNumber}
-                    className="relative group flex-shrink-0"
-                    title={`Order ${boxNumber}`}
-                    style={{ width: boxWidth, minWidth: '20px' }}
-                  >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Progress: <span className="font-medium text-gray-900 dark:text-white">{Math.round(progressPercentage)}%</span>
+                </span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  {completedProducts} of {totalBoxes} orders
+                </span>
+              </div>
+              <div className="w-full flex rounded-full h-3 overflow-hidden bg-gray-200 dark:bg-gray-700">
+                {progressBoxes.map((step) => {
+                  const isCompleted = step <= completedProducts;
+                  const isFirst = step === 1;
+                  const isLast = step === totalBoxes;
+                  return (
                     <div
-                      className={`w-full h-10 rounded border transition-all duration-300 flex items-center justify-center ${
-                        isCompleted
-                          ? 'bg-gradient-to-br from-green-500 to-green-600 border-green-600 dark:from-green-600 dark:to-green-700 dark:border-green-700 shadow-sm'
-                          : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
-                      }`}
+                      key={step}
+                      className="relative flex-1 min-w-0 group flex"
+                      style={{ width: `${100 / totalBoxes}%` }}
+                      title={`Order ${step}${isCompleted ? ' (completed)' : ''}`}
                     >
-                      {isCompleted ? (
-                        <svg
-                          className="w-5 h-5 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          preserveAspectRatio="xMidYMid meet"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      ) : (
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-none">
-                          {boxNumber}
-                        </span>
-                      )}
+                      <div
+                        className={`h-full flex-1 transition-colors duration-300 ${
+                          !isLast ? 'border-r border-white/40 dark:border-gray-500' : ''
+                        } ${isFirst ? 'rounded-l-full' : ''} ${isLast ? 'rounded-r-full' : ''} ${
+                          isCompleted
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700'
+                            : 'bg-gray-200 dark:bg-gray-700'
+                        }`}
+                      />
                     </div>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block z-10">
-                      <div className="bg-gray-900 dark:bg-gray-700 text-white text-[10px] rounded py-0.5 px-1.5 whitespace-nowrap">
-                        Order {boxNumber}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2">
-                          <div className="border-2 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+              <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                <span>1</span>
+                <span>{totalBoxes}</span>
+              </div>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               No orders required
             </div>
           )}
-          
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-xs text-gray-600 dark:text-gray-400">
-              Progress: {Math.round(progressPercentage)}%
-            </div>
-            <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 transition-all duration-500 ease-out"
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
-          </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">

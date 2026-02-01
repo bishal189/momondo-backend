@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { api, type Level } from '../services/api';
 
 interface User {
@@ -77,7 +78,6 @@ function UserManagement() {
   });
   const [editUserLoading, setEditUserLoading] = useState(false);
   const [editUserError, setEditUserError] = useState('');
-  const [editUserSuccess, setEditUserSuccess] = useState('');
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
@@ -498,6 +498,7 @@ function UserManagement() {
         remark: debitFormData.remark,
       });
 
+      toast.success('Balance updated successfully.');
       handleCloseDebitModal();
       await fetchUsers();
     } catch (err: any) {
@@ -578,7 +579,6 @@ function UserManagement() {
       confirm_new_password: '',
     });
     setEditUserError('');
-    setEditUserSuccess('');
     setIsEditUserModalOpen(true);
   };
 
@@ -587,7 +587,6 @@ function UserManagement() {
     setSelectedUserForEdit(null);
     setEditFormData({ username: '', email: '', phone_number: '', new_password: '', confirm_new_password: '' });
     setEditUserError('');
-    setEditUserSuccess('');
   };
 
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -601,7 +600,6 @@ function UserManagement() {
     if (!selectedUserForEdit) return;
 
     setEditUserError('');
-    setEditUserSuccess('');
 
     const { username, email, phone_number, new_password, confirm_new_password } = editFormData;
     const usernameTrim = username.trim();
@@ -658,11 +656,9 @@ function UserManagement() {
         payload.confirm_new_password = confirm_new_password;
       }
       await api.updateUser(selectedUserForEdit.id, payload);
-      setEditUserSuccess('User updated successfully.');
-      setTimeout(() => {
-        handleCloseEditUserModal();
-        fetchUsers();
-      }, 1200);
+      toast.success('User updated successfully.');
+      handleCloseEditUserModal();
+      fetchUsers();
     } catch (err: any) {
       if (err.errors) {
         const messages = Object.entries(err.errors)
@@ -1631,11 +1627,6 @@ function UserManagement() {
                 </button>
               </div>
 
-              {editUserSuccess && (
-                <div className="mb-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg text-sm">
-                  {editUserSuccess}
-                </div>
-              )}
               {editUserError && (
                 <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
                   {editUserError}

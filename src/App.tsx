@@ -1,3 +1,4 @@
+import { Toaster } from 'react-hot-toast';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -16,6 +17,8 @@ import UserOrders from './pages/UserOrders';
 
 function App() {
   return (
+    <>
+    <Toaster position="top-right" />
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -41,6 +44,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
+    </>
   );
 }
 

@@ -69,31 +69,37 @@ function Products() {
   const [updateError, setUpdateError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10;
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       const params: {
         search?: string;
-      } = {};
+        limit: number;
+        offset: number;
+      } = {
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+      };
 
       if (searchTerm.trim()) {
         params.search = searchTerm.trim();
       }
 
-      const response = await api.getProducts(Object.keys(params).length > 0 ? params : undefined);
+      const response = await api.getProducts(params);
       const transformedProducts = response.products.map(transformApiProduct);
       setProducts(transformedProducts);
-      setCurrentPage(1);
+      setTotalCount(response.count ?? 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch products');
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, [searchTerm, currentPage]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -103,13 +109,12 @@ function Products() {
     return () => clearTimeout(timeoutId);
   }, [fetchProducts]);
 
-  const filteredProducts = products;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+  const paginatedProducts = products;
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -328,7 +333,7 @@ function Products() {
                 </svg>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+                {totalCount} product{totalCount !== 1 ? 's' : ''} found
               </div>
             </div>
           </div>
@@ -425,10 +430,10 @@ function Products() {
               </table>
             </div>
 
-            {totalPages > 1 && (
+            {(totalCount > 0 || totalPages > 1) && (
               <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} product{totalCount !== 1 ? 's' : ''}
                 </div>
                 <div className="flex gap-2">
                   <button

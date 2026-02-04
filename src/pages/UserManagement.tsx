@@ -22,6 +22,8 @@ interface User {
   original_account_username?: string | null;
   balance?: number | null;
   account_type?: string;
+  frozen?: boolean;
+  balance_frozen_amount?: string | null;
 }
 
 function UserManagement() {
@@ -108,6 +110,9 @@ function UserManagement() {
     date_joined: string;
     last_login: string | null;
     is_training_account: boolean;
+    frozen?: boolean;
+    balance_frozen?: boolean;
+    balance_frozen_amount?: string | null;
   }): User => {
     return {
       id: tableData.id,
@@ -128,6 +133,8 @@ function UserManagement() {
       original_account_username: tableData.original_account?.username || null,
       balance: tableData.balance || null,
       account_type: tableData.account_type || undefined,
+      frozen: tableData.balance_frozen ?? tableData.frozen ?? false,
+      balance_frozen_amount: tableData.balance_frozen_amount ?? null,
     };
   };
 
@@ -160,6 +167,8 @@ function UserManagement() {
     original_account_email?: string | null;
     original_account_username?: string | null;
     balance?: string | null;
+    balance_frozen?: boolean;
+    balance_frozen_amount?: string | null;
   }): User => {
     return {
       id: apiUser.id,
@@ -179,6 +188,8 @@ function UserManagement() {
       original_account_email: apiUser.original_account_email || null,
       original_account_username: apiUser.original_account_username || null,
       balance: apiUser.balance ? parseFloat(apiUser.balance) : null,
+      frozen: apiUser.balance_frozen ?? false,
+      balance_frozen_amount: apiUser.balance_frozen_amount ?? null,
     };
   };
 
@@ -211,6 +222,8 @@ function UserManagement() {
     original_account_email?: string | null;
     original_account_username?: string | null;
     balance?: string | null;
+    balance_frozen?: boolean;
+    balance_frozen_amount?: string | null;
   }): User => {
     return {
       id: apiUser.id,
@@ -230,6 +243,8 @@ function UserManagement() {
       original_account_email: apiUser.original_account_email || null,
       original_account_username: apiUser.original_account_username || null,
       balance: apiUser.balance ? parseFloat(apiUser.balance) : null,
+      frozen: apiUser.balance_frozen ?? false,
+      balance_frozen_amount: apiUser.balance_frozen_amount ?? null,
     };
   };
 
@@ -241,28 +256,27 @@ function UserManagement() {
       let response;
       if (isAdmin) {
         response = await api.getAdminAgentUsers();
-        if (response.table_data && response.table_data.length > 0) {
-          const convertedUsers = response.table_data.map(convertTableDataToLocal);
-          setUsers(convertedUsers);
+        if (response.flat_list && response.flat_list.length > 0) {
+          setUsers(response.flat_list.map(convertAdminApiUserToLocal));
+        } else if (response.table_data && response.table_data.length > 0) {
+          setUsers(response.table_data.map(convertTableDataToLocal));
         } else {
-          const usersList = response.flat_list || response.users || [];
-          const convertedUsers = usersList.map(convertAdminApiUserToLocal);
-          setUsers(convertedUsers);
+          const usersList = response.users || [];
+          setUsers(usersList.map(convertAdminApiUserToLocal));
         }
       } else {
         response = await api.getMyUsers();
-        if (response.table_data && response.table_data.length > 0) {
-          const convertedUsers = response.table_data.map(convertTableDataToLocal);
-          setUsers(convertedUsers);
+        if (response.flat_list && response.flat_list.length > 0) {
+          setUsers(response.flat_list.map(convertApiUserToLocal));
+        } else if (response.table_data && response.table_data.length > 0) {
+          setUsers(response.table_data.map(convertTableDataToLocal));
         } else {
-          const usersList = response.flat_list || response.users || [];
-          const convertedUsers = usersList.map(convertApiUserToLocal);
-          setUsers(convertedUsers);
+          const usersList = response.users || [];
+          setUsers(usersList.map(convertApiUserToLocal));
         }
       }
     } catch (err) {
       setListError(err instanceof Error ? err.message : 'Failed to fetch users');
-      console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
@@ -281,28 +295,27 @@ function UserManagement() {
         let response;
         if (adminStatus) {
           response = await api.getAdminAgentUsers();
-          if (response.table_data && response.table_data.length > 0) {
-            const convertedUsers = response.table_data.map(convertTableDataToLocal);
-            setUsers(convertedUsers);
+          if (response.flat_list && response.flat_list.length > 0) {
+            setUsers(response.flat_list.map(convertAdminApiUserToLocal));
+          } else if (response.table_data && response.table_data.length > 0) {
+            setUsers(response.table_data.map(convertTableDataToLocal));
           } else {
-            const usersList = response.flat_list || response.users || [];
-            const convertedUsers = usersList.map(convertAdminApiUserToLocal);
-            setUsers(convertedUsers);
+            const usersList = response.users || [];
+            setUsers(usersList.map(convertAdminApiUserToLocal));
           }
         } else {
           response = await api.getMyUsers();
-          if (response.table_data && response.table_data.length > 0) {
-            const convertedUsers = response.table_data.map(convertTableDataToLocal);
-            setUsers(convertedUsers);
+          if (response.flat_list && response.flat_list.length > 0) {
+            setUsers(response.flat_list.map(convertApiUserToLocal));
+          } else if (response.table_data && response.table_data.length > 0) {
+            setUsers(response.table_data.map(convertTableDataToLocal));
           } else {
-            const usersList = response.flat_list || response.users || [];
-            const convertedUsers = usersList.map(convertApiUserToLocal);
-            setUsers(convertedUsers);
+            const usersList = response.users || [];
+            setUsers(usersList.map(convertApiUserToLocal));
           }
         }
       } catch (err) {
         setListError(err instanceof Error ? err.message : 'Failed to fetch users');
-        console.error('Error fetching users:', err);
       } finally {
         setLoading(false);
       }
@@ -931,6 +944,8 @@ function UserManagement() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created By</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Frozen</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Frozen Amount</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date Joined</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Login</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
@@ -967,7 +982,7 @@ function UserManagement() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                        {user.balance !== null && user.balance !== undefined ? `$${user.balance.toFixed(2)}` : '-'}
+                        {user.balance != null ? `$${Number(user.balance).toFixed(2)}` : '$0.00'}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
@@ -981,6 +996,24 @@ function UserManagement() {
                         {user.created_by || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm">{getStatusBadge(user.status)}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {user.frozen ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-white bg-red-600 dark:bg-red-700 animate-frozen">
+                            Frozen
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {user.balance_frozen_amount != null && user.balance_frozen_amount !== '' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-red-800 dark:text-red-200 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800">
+                            ${Number(user.balance_frozen_amount).toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(user.date_joined)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(user.last_login)}</td>
                       <td className="px-4 py-3 text-sm">
@@ -1045,7 +1078,7 @@ function UserManagement() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={15} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={17} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       No users found
                     </td>
                   </tr>

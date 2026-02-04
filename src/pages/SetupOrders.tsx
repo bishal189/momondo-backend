@@ -125,17 +125,14 @@ function SetupOrders() {
   const handleConfirmInsert = (position: number) => {
     if (!selectedItemForInsert) return;
 
-    const currentPosition = items.findIndex((item) => item.id === selectedItemForInsert.id);
-    
-    if (currentPosition === -1) return;
+    const currentIndex = items.findIndex((item) => item.id === selectedItemForInsert.id);
+    if (currentIndex === -1) return;
 
-    // Create a new array with the item moved to the selected position
     const newItems = [...items];
-    const [movedItem] = newItems.splice(currentPosition, 1);
-    movedItem.completed = true;
-    newItems.splice(position - 1, 0, movedItem);
+    const [movedItem] = newItems.splice(currentIndex, 1);
+    const insertedItem = { ...movedItem, completed: true, order: position };
+    newItems.splice(position - 1, 0, insertedItem);
 
-    // Update order numbers
     const updatedItems = newItems.map((item, index) => ({
       ...item,
       order: index + 1,
@@ -143,7 +140,6 @@ function SetupOrders() {
 
     setItems(updatedItems);
     handleCloseInsertModal();
-    console.log('Inserted item:', selectedItemForInsert.id, 'at position:', position);
   };
 
   const getStatusBadge = (completed: boolean) => {

@@ -430,6 +430,9 @@ export const api = {
       date_joined: string;
       last_login: string | null;
       is_training_account: boolean;
+      frozen?: boolean;
+      balance_frozen?: boolean;
+      balance_frozen_amount?: string | null;
     }>;
     users?: Array<any>;
     flat_list?: Array<any>;
@@ -480,6 +483,9 @@ export const api = {
       date_joined: string;
       last_login: string | null;
       is_training_account: boolean;
+      frozen?: boolean;
+      balance_frozen?: boolean;
+      balance_frozen_amount?: string | null;
     }>;
     users?: Array<any>;
     flat_list?: Array<any>;
@@ -763,18 +769,29 @@ export const api = {
     max_price?: string;
     limit?: number;
     offset?: number;
-  }): Promise<{ products: Array<{
-    id: number;
-    image: string | null;
-    image_url: string | null;
-    title: string;
-    description: string;
-    price: string;
-    status: 'ACTIVE' | 'INACTIVE';
-    created_at: string;
-    position?: number;
-    review_status?: string;
-  }>; count: number }> {
+  }): Promise<{
+    products: Array<{
+      id: number;
+      image: string | null;
+      image_url: string | null;
+      title: string;
+      description: string;
+      price: string;
+      status: 'ACTIVE' | 'INACTIVE';
+      created_at: string;
+      position?: number;
+      review_status?: string;
+      effective_price?: string;
+      potential_commission?: number | null;
+      commission_amount?: number | null;
+      commission_rate?: number | null;
+    }>;
+    count: number;
+    limit?: number;
+    offset?: number;
+    has_more?: boolean;
+    next_offset?: number;
+  }> {
     const queryParams = new URLSearchParams();
     
     if (params?.status) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { api, type Transaction as ApiTransaction } from '../services/api';
 
 interface Transaction {
@@ -155,8 +156,10 @@ function Transactions() {
     setActionLoading(transactionId);
     try {
       await api.approveTransaction(transactionId);
+      toast.success('Transaction approved successfully.');
       await fetchTransactions();
-    } catch (error) {
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to approve transaction');
     } finally {
       setActionLoading(null);
     }
@@ -166,8 +169,10 @@ function Transactions() {
     setActionLoading(transactionId);
     try {
       await api.rejectTransaction(transactionId);
+      toast.success('Transaction rejected.');
       await fetchTransactions();
-    } catch (error) {
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reject transaction');
     } finally {
       setActionLoading(null);
     }

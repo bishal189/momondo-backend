@@ -27,3 +27,18 @@ body {
   margin: 0;
   padding: 0;
 }
+
+@keyframes frozen-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    opacity: 0.95;
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+}
+
+.animate-frozen {
+  animation: frozen-pulse 1.5s ease-in-out infinite;
+}

@@ -266,8 +266,23 @@ function Levels() {
     setProductsLoading(true);
 
     try {
-      const productsResponse = await api.getProducts({ status: 'ACTIVE' });
-      setAvailableProducts(productsResponse.products);
+      const allProducts: Awaited<ReturnType<typeof api.getProducts>>['products'] = [];
+      let offset = 0;
+      const pageSize = 50;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await api.getProducts({
+          status: 'ACTIVE',
+          limit: pageSize,
+          offset,
+        });
+        allProducts.push(...response.products);
+        hasMore = response.has_more === true && response.products.length === pageSize;
+        offset = response.next_offset ?? offset + pageSize;
+      }
+
+      setAvailableProducts(allProducts);
     } catch (err) {
       setProductsError(err instanceof Error ? err.message : 'Failed to load products');
     } finally {

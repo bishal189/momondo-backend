@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
@@ -75,6 +75,19 @@ function UserOrders() {
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [insertLoading, setInsertLoading] = useState(false);
   const [insertError, setInsertError] = useState('');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
+  const [editFormData, setEditFormData] = useState<{ title: string; description: string; price: string; status: 'Active' | 'Inactive' }>({
+    title: '',
+    description: '',
+    price: '',
+    status: 'Active',
+  });
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [updateLoading, setUpdateLoading] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -146,7 +159,6 @@ function UserOrders() {
       const response = await api.getProducts(params);
       
       const transformedProducts = response.products.map(transformApiProduct);
-      console.log(transformedProducts,'transformedProducts');
       setProducts(transformedProducts);
       setTotalCount(response.count ?? transformedProducts.length);
     } catch (err) {
@@ -164,7 +176,15 @@ function UserOrders() {
   const progressBoxes = Array.from({ length: totalBoxes }, (_, index) => index + 1);
 
   const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
-  const paginatedProducts = products;
+  const paginatedProducts = useMemo(
+    () =>
+      [...products].sort((a, b) => {
+        const pa = a.position ?? 999999;
+        const pb = b.position ?? 999999;
+        return pa - pb;
+      }),
+    [products]
+  );
 
   const handleInsertClick = (product: Product) => {
     setSelectedProductForInsert(product);
@@ -179,19 +199,100 @@ function UserOrders() {
     setInsertError('');
   };
 
+  const handleEditClick = async (product: Product) => {
+    setSelectedProductForEdit(product);
+    setEditError('');
+    setEditLoading(true);
+    setIsEditModalOpen(true);
+    setEditFormData({ title: product.title, description: product.description, price: product.price || '0.00', status: product.status });
+    setEditImageFile(null);
+    setEditImagePreview(product.image || null);
+    try {
+      const apiProduct = await api.getProductDetail(product.id);
+      const transformed = transformApiProduct(apiProduct);
+      setEditFormData({ title: transformed.title, description: transformed.description, price: transformed.price || '0.00', status: transformed.status });
+      setEditImagePreview(transformed.image || null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to load product details');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedProductForEdit(null);
+    setEditFormData({ title: '', description: '', price: '', status: 'Active' });
+    setEditImageFile(null);
+    setEditImagePreview(null);
+    setEditError('');
+  };
+
+  const handleEditInputChange = (field: keyof typeof editFormData, value: string) => {
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setEditImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedProductForEdit) return;
+    setEditError('');
+    setUpdateLoading(true);
+    try {
+      await api.updateProduct(selectedProductForEdit.id, {
+        title: editFormData.title.trim(),
+        description: editFormData.description.trim(),
+        price: editFormData.price.trim() || '0.00',
+        status: (editFormData.status === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
+        image: editImageFile || undefined,
+      });
+      toast.success('Product updated successfully.');
+      handleCloseEditModal();
+      await fetchProducts();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update product';
+      setEditError(msg);
+      toast.error(msg);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   const handleInsertAtPosition = async () => {
     if (!userId || !selectedProductForInsert || !selectedPosition) return;
 
     const productId = selectedProductForInsert.id;
-    const previousPosition = selectedProductForInsert.position;
+    const previousPosition = selectedProductForInsert.position ?? null;
 
     setInsertLoading(true);
     setInsertError('');
 
     setProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId ? { ...p, position: selectedPosition } : p
-      )
+      prev.map((p) => {
+        if (p.id === productId) return { ...p, position: selectedPosition };
+        const pos = p.position ?? 0;
+        if (previousPosition == null) {
+          if (pos >= selectedPosition) return { ...p, position: pos + 1 };
+          return p;
+        }
+        if (previousPosition > selectedPosition) {
+          if (pos >= selectedPosition && pos < previousPosition) return { ...p, position: pos + 1 };
+          return p;
+        }
+        if (previousPosition < selectedPosition) {
+          if (pos > previousPosition && pos <= selectedPosition) return { ...p, position: pos - 1 };
+          return p;
+        }
+        return p;
+      })
     );
     handleCloseInsertModal();
 
@@ -200,11 +301,7 @@ function UserOrders() {
       toast.success('Product added successfully.');
       await fetchCompletedCount();
     } catch (err) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, position: previousPosition } : p
-        )
-      );
+      await fetchProducts();
       setInsertError(err instanceof Error ? err.message : 'Failed to insert product at position');
       setIsInsertModalOpen(true);
       setSelectedProductForInsert(selectedProductForInsert);
@@ -369,7 +466,7 @@ function UserOrders() {
                       paginatedProducts.map((product, index) => (
                         <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{product.position != null && product.position !== undefined ? product.position : '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{product.position != null ? product.position : 0}</td>
                           <td className="px-4 py-3 text-sm">
                             {product.image ? (
                               <img
@@ -399,12 +496,20 @@ function UserOrders() {
                           <td className="px-4 py-3 text-sm">{getStatusBadge(product.status)}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{product.createdAt}</td>
                           <td className="px-4 py-3 text-sm">
-                            <button
-                              onClick={() => handleInsertClick(product)}
-                              className="px-3 py-1.5 text-xs bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium"
-                            >
-                              Insert
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEditClick(product)}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleInsertClick(product)}
+                                className="px-3 py-1.5 text-xs bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium"
+                              >
+                                Insert
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -587,6 +692,134 @@ function UserOrders() {
                   {insertLoading ? 'Adding...' : 'Add'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditModalOpen && selectedProductForEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Edit Product
+                </h2>
+                <button
+                  onClick={handleCloseEditModal}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {editLoading && (
+                <div className="mb-4 text-center py-4">
+                  <p className="text-gray-600 dark:text-gray-400">Loading product details...</p>
+                </div>
+              )}
+
+              {editError && (
+                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+                  {editError}
+                </div>
+              )}
+
+              {!editLoading && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveEdit();
+                  }}
+                  className="space-y-6"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Title *</label>
+                    <input
+                      type="text"
+                      value={editFormData.title}
+                      onChange={(e) => handleEditInputChange('title', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                      placeholder="Enter product title..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Description</label>
+                    <textarea
+                      value={editFormData.description}
+                      onChange={(e) => handleEditInputChange('description', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      rows={4}
+                      placeholder="Enter product description..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Price *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editFormData.price}
+                      onChange={(e) => handleEditInputChange('price', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditImageChange}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-900 file:text-white hover:file:bg-gray-800 dark:file:bg-gray-900 dark:file:text-white"
+                    />
+                    {(editImagePreview || selectedProductForEdit.image) && (
+                      <div className="mt-2">
+                        <img
+                          src={editImagePreview || selectedProductForEdit.image || ''}
+                          alt="Preview"
+                          className="w-32 h-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://via.placeholder.com/150?text=No+Image';
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Status</label>
+                    <select
+                      value={editFormData.status}
+                      onChange={(e) => handleEditInputChange('status', e.target.value as 'Active' | 'Inactive')}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      type="button"
+                      onClick={handleCloseEditModal}
+                      className="px-6 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={updateLoading}
+                      className="px-6 py-2.5 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updateLoading ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>

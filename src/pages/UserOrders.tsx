@@ -12,6 +12,8 @@ interface Product {
   status: 'Active' | 'Inactive';
   createdAt: string;
   completed?: boolean;
+  position?: number | null;
+  reviewStatus?: string | null;
 }
 
 const transformApiProduct = (apiProduct: {
@@ -23,6 +25,8 @@ const transformApiProduct = (apiProduct: {
   price: string;
   status: 'ACTIVE' | 'INACTIVE';
   created_at: string;
+  position?: number;
+  review_status?: string;
 }): Product => {
   return {
     id: apiProduct.id,
@@ -40,6 +44,8 @@ const transformApiProduct = (apiProduct: {
       second: '2-digit',
       hour12: false,
     }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
+    position: apiProduct.position,
+    reviewStatus: apiProduct.review_status,
   };
 };
 
@@ -138,7 +144,9 @@ function UserOrders() {
       }
 
       const response = await api.getProducts(params);
+      
       const transformedProducts = response.products.map(transformApiProduct);
+      console.log(transformedProducts,'transformedProducts');
       setProducts(transformedProducts);
       setTotalCount(response.count ?? transformedProducts.length);
     } catch (err) {
@@ -173,17 +181,34 @@ function UserOrders() {
 
   const handleInsertAtPosition = async () => {
     if (!userId || !selectedProductForInsert || !selectedPosition) return;
-    
+
+    const productId = selectedProductForInsert.id;
+    const previousPosition = selectedProductForInsert.position;
+
     setInsertLoading(true);
     setInsertError('');
 
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, position: selectedPosition } : p
+      )
+    );
+    handleCloseInsertModal();
+
     try {
-      await api.insertProductAtPosition(selectedProductForInsert.id, selectedPosition);
+      await api.insertProductAtPosition(productId, selectedPosition);
       toast.success('Product added successfully.');
-      handleCloseInsertModal();
       await fetchCompletedCount();
     } catch (err) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, position: previousPosition } : p
+        )
+      );
       setInsertError(err instanceof Error ? err.message : 'Failed to insert product at position');
+      setIsInsertModalOpen(true);
+      setSelectedProductForInsert(selectedProductForInsert);
+      setSelectedPosition(selectedPosition);
     } finally {
       setInsertLoading(false);
     }
@@ -329,6 +354,7 @@ function UserOrders() {
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">#</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Position</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Image</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Title</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
@@ -343,6 +369,7 @@ function UserOrders() {
                       paginatedProducts.map((product, index) => (
                         <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{product.position != null && product.position !== undefined ? product.position : '—'}</td>
                           <td className="px-4 py-3 text-sm">
                             {product.image ? (
                               <img
@@ -383,7 +410,7 @@ function UserOrders() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                           No products found
                         </td>
                       </tr>
@@ -472,9 +499,26 @@ function UserOrders() {
 
               {totalBoxes > 0 ? (
                 <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Position
+                    </label>
+                    <select
+                      value={selectedPosition ?? ''}
+                      onChange={(e) => setSelectedPosition(e.target.value ? Number(e.target.value) : null)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select position (1 to {totalBoxes})</option>
+                      {progressBoxes.map((pos) => (
+                        <option key={pos} value={pos}>
+                          Position {pos}{pos <= completedProducts ? ' (completed)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="mb-6">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      Select a position to insert this product (1 to {totalBoxes}):
+                      Or select from the list below:
                     </p>
                     <div className="max-h-96 overflow-y-auto space-y-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
                       {progressBoxes.map((position) => {

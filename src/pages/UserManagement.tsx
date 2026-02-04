@@ -660,17 +660,16 @@ function UserManagement() {
       handleCloseEditUserModal();
       fetchUsers();
     } catch (err: any) {
-      if (err.errors) {
-        const messages = Object.entries(err.errors)
-          .map(([key, value]) => {
-            if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
-            return `${key}: ${value}`;
-          })
-          .join('\n');
-        setEditUserError(messages);
-      } else {
-        setEditUserError(err instanceof Error ? err.message : 'Failed to update user');
-      }
+      const errorMessage = err.errors
+        ? Object.entries(err.errors)
+            .map(([key, value]) => {
+              if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
+              return `${key}: ${value}`;
+            })
+            .join('\n')
+        : (err instanceof Error ? err.message : 'Failed to update user');
+      setEditUserError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setEditUserLoading(false);
     }
@@ -828,6 +827,7 @@ function UserManagement() {
 
       await api.createTrainingAccount(trainingData);
       setSuccess('Training account created successfully!');
+      toast.success('Training account created successfully!');
       setFieldErrors({});
 
       setTimeout(() => {

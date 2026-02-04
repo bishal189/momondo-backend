@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { api, type Level as ApiLevel } from '../services/api';
 
 interface Level {
@@ -11,6 +12,8 @@ interface Level {
   benefits: string;
   status: 'Active' | 'Inactive';
   createdAt: string;
+  priceMinPercent?: number;
+  priceMaxPercent?: number;
 }
 
 const transformApiLevel = (apiLevel: ApiLevel): Level => {
@@ -32,6 +35,8 @@ const transformApiLevel = (apiLevel: ApiLevel): Level => {
       second: '2-digit',
       hour12: false,
     }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
+    priceMinPercent: apiLevel.price_min_percent,
+    priceMaxPercent: apiLevel.price_max_percent,
   };
 };
 
@@ -62,6 +67,8 @@ function Levels() {
     minimumOrders: 0,
     benefits: '',
     status: 'Active',
+    priceMinPercent: undefined,
+    priceMaxPercent: undefined,
   });
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
@@ -158,6 +165,8 @@ function Levels() {
         minimumOrders: transformedLevel.minimumOrders,
         benefits: transformedLevel.benefits,
         status: transformedLevel.status,
+        priceMinPercent: transformedLevel.priceMinPercent,
+        priceMaxPercent: transformedLevel.priceMaxPercent,
       });
       setSelectedLevel(transformedLevel);
     } catch (err) {
@@ -190,25 +199,25 @@ function Levels() {
         min_orders: formData.minimumOrders ?? selectedLevel.minimumOrders,
         benefits: formData.benefits || selectedLevel.benefits,
         status: ((formData.status || selectedLevel.status) === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
+        ...(formData.priceMinPercent != null && { price_min_percent: formData.priceMinPercent }),
+        ...(formData.priceMaxPercent != null && { price_max_percent: formData.priceMaxPercent }),
       };
 
       await api.updateLevel(selectedLevel.id, levelData);
+      toast.success('Level updated successfully.');
       handleCloseModal();
       fetchLevels();
     } catch (err: any) {
-      if (err.errors) {
-        const errorMessages = Object.entries(err.errors)
-          .map(([key, value]) => {
-            if (Array.isArray(value)) {
-              return `${key}: ${value.join(', ')}`;
-            }
-            return `${key}: ${value}`;
-          })
-          .join('\n');
-        setUpdateError(errorMessages);
-      } else {
-        setUpdateError(err instanceof Error ? err.message : 'Failed to update level');
-      }
+      const errorMessage = err.errors
+        ? Object.entries(err.errors)
+            .map(([key, value]) => {
+              if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
+              return `${key}: ${value}`;
+            })
+            .join('\n')
+        : (err instanceof Error ? err.message : 'Failed to update level');
+      setUpdateError(errorMessage);
+      toast.error('Failed to update level');
     } finally {
       setUpdateLoading(false);
     }
@@ -349,6 +358,8 @@ function Levels() {
       minimumOrders: 0,
       benefits: '',
       status: 'Active',
+      priceMinPercent: undefined,
+      priceMaxPercent: undefined,
     });
     setIsAddModalOpen(true);
   };
@@ -364,6 +375,8 @@ function Levels() {
       minimumOrders: 0,
       benefits: '',
       status: 'Active',
+      priceMinPercent: undefined,
+      priceMaxPercent: undefined,
     });
   };
 
@@ -380,6 +393,8 @@ function Levels() {
         min_orders: addFormData.minimumOrders || 0,
         benefits: addFormData.benefits || '',
         status: (addFormData.status === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
+        ...(addFormData.priceMinPercent != null && { price_min_percent: addFormData.priceMinPercent }),
+        ...(addFormData.priceMaxPercent != null && { price_max_percent: addFormData.priceMaxPercent }),
       };
 
       await api.createLevel(levelData);
@@ -488,6 +503,8 @@ function Levels() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level Name</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Minimum Balance</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Commission Rate</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Min %</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Max %</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Number of Orders</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Benefits</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
@@ -504,6 +521,8 @@ function Levels() {
                         <td className="px-4 py-3 text-sm">{getLevelBadge(level.levelName)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-medium">{level.requiredPoints.toLocaleString()}</td>
                         <td className="px-4 py-3 text-sm text-green-600 dark:text-green-400 font-medium">{level.commissionRate}%</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.priceMinPercent != null ? `${level.priceMinPercent}%` : '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.priceMaxPercent != null ? `${level.priceMaxPercent}%` : '—'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.minimumOrders}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" title={level.benefits}>
                           {level.benefits}
@@ -546,7 +565,7 @@ function Levels() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan={12} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                         No levels found
                       </td>
                     </tr>
@@ -687,6 +706,43 @@ function Levels() {
                       required
                       min="0"
                       max="100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Min %
+                    </label>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <span title="price_min_percent">Min %</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{formData.priceMinPercent ?? 0}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={formData.priceMinPercent ?? 0}
+                      onChange={(e) => handleInputChange('priceMinPercent', parseInt(e.target.value) || 0)}
+                      className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Max %
+                    </label>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <span title="price_max_percent">Max %</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{formData.priceMaxPercent ?? 0}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={formData.priceMaxPercent ?? 0}
+                      onChange={(e) => handleInputChange('priceMaxPercent', parseInt(e.target.value) || 0)}
+                      className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-500"
                     />
                   </div>
                 </div>
@@ -916,6 +972,39 @@ function Levels() {
                       required
                       min="0"
                       max="100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Min %
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max="100"
+                      placeholder="30"
+                      title="price_min_percent"
+                      value={addFormData.priceMinPercent ?? ''}
+                      onChange={(e) => handleAddInputChange('priceMinPercent', e.target.value === '' ? undefined as any : parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Max %
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max="100"
+                      placeholder="70"
+                      title="price_max_percent"
+                      value={addFormData.priceMaxPercent ?? ''}
+                      onChange={(e) => handleAddInputChange('priceMaxPercent', e.target.value === '' ? undefined as any : parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>

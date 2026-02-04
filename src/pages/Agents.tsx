@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
 interface Agent {
@@ -405,11 +406,21 @@ function Agents() {
         login_password: editFormData.login_password || '',
       });
 
+      toast.success('Agent updated successfully.');
       handleCloseEditModal();
       fetchAgents();
     } catch (err: any) {
       setEditFieldErrors({});
       setEditError('');
+
+      const errorMessage = err.errors
+        ? Object.entries(err.errors)
+            .map(([key, value]) => {
+              if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
+              return `${key}: ${value}`;
+            })
+            .join('\n')
+        : (err instanceof Error ? err.message : 'Failed to update agent');
 
       if (err.errors) {
         const normalizedErrors: Record<string, string[]> = {};
@@ -424,8 +435,10 @@ function Agents() {
 
         setEditFieldErrors(normalizedErrors);
       } else {
-        setEditError(err instanceof Error ? err.message : 'Failed to update agent');
+        setEditError(errorMessage);
       }
+
+      toast.error('Failed to update agent');
     } finally {
       setEditLoading(false);
     }

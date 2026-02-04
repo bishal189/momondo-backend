@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { ReactElement } from 'react';
+import toast from 'react-hot-toast';
 import { logout, api, type UserProfile } from '../services/api';
 
 interface MenuItem {
@@ -190,8 +191,10 @@ function Sidebar() {
         await navigator.clipboard.writeText(userProfile.invitation_code);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+        toast.success('Refer code copied!');
       } catch (err) {
         console.error('Failed to copy invitation code:', err);
+        toast.error('Failed to copy');
       }
     }
   };

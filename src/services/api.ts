@@ -85,6 +85,8 @@ export interface Level {
   benefits: string;
   status: 'ACTIVE' | 'INACTIVE';
   created_at: string;
+  price_min_percent?: number;
+  price_max_percent?: number;
 }
 
 export interface LevelsResponse {
@@ -629,6 +631,8 @@ export const api = {
     min_orders: number;
     benefits: string;
     status: 'ACTIVE' | 'INACTIVE';
+    price_min_percent?: number;
+    price_max_percent?: number;
   }): Promise<Level> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/level/`, {
       method: 'POST',
@@ -669,6 +673,8 @@ export const api = {
     min_orders: number;
     benefits: string;
     status: 'ACTIVE' | 'INACTIVE';
+    price_min_percent?: number;
+    price_max_percent?: number;
   }): Promise<Level> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/level/${id}/`, {
       method: 'PUT',
@@ -766,6 +772,8 @@ export const api = {
     price: string;
     status: 'ACTIVE' | 'INACTIVE';
     created_at: string;
+    position?: number;
+    review_status?: string;
   }>; count: number }> {
     const queryParams = new URLSearchParams();
     

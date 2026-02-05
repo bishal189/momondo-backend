@@ -14,6 +14,7 @@ interface Level {
   createdAt: string;
   priceMinPercent?: number;
   priceMaxPercent?: number;
+  frozenCommissionRate?: number | null;
 }
 
 const transformApiLevel = (apiLevel: ApiLevel): Level => {
@@ -37,6 +38,7 @@ const transformApiLevel = (apiLevel: ApiLevel): Level => {
     }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
     priceMinPercent: apiLevel.price_min_percent,
     priceMaxPercent: apiLevel.price_max_percent,
+    frozenCommissionRate: apiLevel.frozen_commission_rate ?? null,
   };
 };
 
@@ -69,6 +71,7 @@ function Levels() {
     status: 'Active',
     priceMinPercent: undefined,
     priceMaxPercent: undefined,
+    frozenCommissionRate: undefined,
   });
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
@@ -167,6 +170,7 @@ function Levels() {
         status: transformedLevel.status,
         priceMinPercent: transformedLevel.priceMinPercent,
         priceMaxPercent: transformedLevel.priceMaxPercent,
+        frozenCommissionRate: transformedLevel.frozenCommissionRate,
       });
       setSelectedLevel(transformedLevel);
     } catch (err) {
@@ -201,6 +205,7 @@ function Levels() {
         status: ((formData.status || selectedLevel.status) === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
         ...(formData.priceMinPercent != null && { price_min_percent: formData.priceMinPercent }),
         ...(formData.priceMaxPercent != null && { price_max_percent: formData.priceMaxPercent }),
+        frozen_commission_rate: formData.frozenCommissionRate ?? null,
       };
 
       await api.updateLevel(selectedLevel.id, levelData);
@@ -375,6 +380,7 @@ function Levels() {
       status: 'Active',
       priceMinPercent: undefined,
       priceMaxPercent: undefined,
+      frozenCommissionRate: undefined,
     });
     setIsAddModalOpen(true);
   };
@@ -392,6 +398,7 @@ function Levels() {
       status: 'Active',
       priceMinPercent: undefined,
       priceMaxPercent: undefined,
+      frozenCommissionRate: undefined,
     });
   };
 
@@ -410,6 +417,7 @@ function Levels() {
         status: (addFormData.status === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
         ...(addFormData.priceMinPercent != null && { price_min_percent: addFormData.priceMinPercent }),
         ...(addFormData.priceMaxPercent != null && { price_max_percent: addFormData.priceMaxPercent }),
+        frozen_commission_rate: addFormData.frozenCommissionRate ?? null,
       };
 
       await api.createLevel(levelData);
@@ -520,6 +528,7 @@ function Levels() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Commission Rate</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Min %</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Max %</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Frozen %</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Number of Orders</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Benefits</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
@@ -538,6 +547,7 @@ function Levels() {
                         <td className="px-4 py-3 text-sm text-green-600 dark:text-green-400 font-medium">{level.commissionRate}%</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.priceMinPercent != null ? `${level.priceMinPercent}%` : '—'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.priceMaxPercent != null ? `${level.priceMaxPercent}%` : '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.frozenCommissionRate != null ? `${level.frozenCommissionRate}%` : '—'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.minimumOrders}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" title={level.benefits}>
                           {level.benefits}
@@ -580,7 +590,7 @@ function Levels() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={12} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan={13} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                         No levels found
                       </td>
                     </tr>
@@ -757,6 +767,24 @@ function Levels() {
                       step="1"
                       value={formData.priceMaxPercent ?? 0}
                       onChange={(e) => handleInputChange('priceMaxPercent', parseInt(e.target.value) || 0)}
+                      className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Frozen %
+                    </label>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <span>Frozen %</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{formData.frozenCommissionRate != null ? `${formData.frozenCommissionRate}%` : '—'}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={formData.frozenCommissionRate ?? 0}
+                      onChange={(e) => handleInputChange('frozenCommissionRate', parseInt(e.target.value) || 0)}
                       className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-500"
                     />
                   </div>
@@ -1020,6 +1048,24 @@ function Levels() {
                       value={addFormData.priceMaxPercent ?? ''}
                       onChange={(e) => handleAddInputChange('priceMaxPercent', e.target.value === '' ? undefined as any : parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Frozen %
+                    </label>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <span>Frozen %</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{addFormData.frozenCommissionRate != null ? `${addFormData.frozenCommissionRate}%` : '—'}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={addFormData.frozenCommissionRate ?? 0}
+                      onChange={(e) => handleAddInputChange('frozenCommissionRate', parseInt(e.target.value) || 0)}
+                      className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-500"
                     />
                   </div>
                 </div>

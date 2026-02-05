@@ -87,6 +87,7 @@ export interface Level {
   created_at: string;
   price_min_percent?: number;
   price_max_percent?: number;
+  frozen_commission_rate?: number | null;
 }
 
 export interface LevelsResponse {
@@ -639,6 +640,7 @@ export const api = {
     status: 'ACTIVE' | 'INACTIVE';
     price_min_percent?: number;
     price_max_percent?: number;
+    frozen_commission_rate?: number | null;
   }): Promise<Level> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/level/`, {
       method: 'POST',
@@ -681,6 +683,7 @@ export const api = {
     status: 'ACTIVE' | 'INACTIVE';
     price_min_percent?: number;
     price_max_percent?: number;
+    frozen_commission_rate?: number | null;
   }): Promise<Level> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/level/${id}/`, {
       method: 'PUT',

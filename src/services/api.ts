@@ -769,6 +769,7 @@ export const api = {
     max_price?: string;
     limit?: number;
     offset?: number;
+    user_id?: number;
   }): Promise<{
     products: Array<{
       id: number;
@@ -781,6 +782,7 @@ export const api = {
       created_at: string;
       position?: number;
       review_status?: string;
+      inserted_for_user?: boolean;
       effective_price?: string;
       potential_commission?: number | null;
       commission_amount?: number | null;
@@ -811,6 +813,9 @@ export const api = {
     }
     if (params?.offset != null) {
       queryParams.append('offset', String(params.offset));
+    }
+    if (params?.user_id != null) {
+      queryParams.append('user_id', String(params.user_id));
     }
 
     const url = `${API_BASE_URL}/api/product/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
@@ -926,13 +931,13 @@ export const api = {
     return response.json();
   },
 
-  async insertProductAtPosition(productId: number, position: number): Promise<any> {
+  async insertProductAtPosition(productId: number, position: number, userId: number): Promise<any> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/product/${productId}/position/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ position }),
+      body: JSON.stringify({ position, user_id: userId }),
     });
 
     if (!response.ok) {

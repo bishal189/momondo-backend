@@ -14,6 +14,7 @@ interface Product {
   completed?: boolean;
   position?: number | null;
   reviewStatus?: string | null;
+  inserted_for_user?: boolean;
 }
 
 const transformApiProduct = (apiProduct: {
@@ -27,6 +28,7 @@ const transformApiProduct = (apiProduct: {
   created_at: string;
   position?: number;
   review_status?: string;
+  inserted_for_user?: boolean;
 }): Product => {
   return {
     id: apiProduct.id,
@@ -46,6 +48,7 @@ const transformApiProduct = (apiProduct: {
     }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
     position: apiProduct.position,
     reviewStatus: apiProduct.review_status,
+    inserted_for_user: apiProduct.inserted_for_user,
   };
 };
 
@@ -147,7 +150,7 @@ function UserOrders() {
     setError('');
 
     try {
-      const params: { status?: 'ACTIVE'; search?: string; limit: number; offset: number } = {
+      const params: { status?: 'ACTIVE'; search?: string; limit: number; offset: number; user_id?: number } = {
         status: 'ACTIVE',
         limit: itemsPerPage,
         offset: (currentPage - 1) * itemsPerPage,
@@ -155,8 +158,12 @@ function UserOrders() {
       if (searchTerm.trim()) {
         params.search = searchTerm.trim();
       }
+      if (userId) {
+        params.user_id = parseInt(userId, 10);
+      }
 
       const response = await api.getProducts(params);
+      console.log(response);
       
       const transformedProducts = response.products.map(transformApiProduct);
       setProducts(transformedProducts);
@@ -277,7 +284,7 @@ function UserOrders() {
 
     setProducts((prev) =>
       prev.map((p) => {
-        if (p.id === productId) return { ...p, position: selectedPosition };
+        if (p.id === productId) return { ...p, position: selectedPosition, inserted_for_user: true };
         const pos = p.position ?? 0;
         if (previousPosition == null) {
           if (pos >= selectedPosition) return { ...p, position: pos + 1 };
@@ -297,7 +304,7 @@ function UserOrders() {
     handleCloseInsertModal();
 
     try {
-      await api.insertProductAtPosition(productId, selectedPosition);
+      await api.insertProductAtPosition(productId, selectedPosition, parseInt(userId, 10));
       toast.success('Product added successfully.');
       await fetchCompletedCount();
     } catch (err) {
@@ -486,7 +493,16 @@ function UserOrders() {
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{product.title}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span>{product.title}</span>
+                              {product.inserted_for_user ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border border-red-200 dark:border-red-800">
+                                  Inserted for neagative - negative balance
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" title={product.description}>
                             {product.description}
                           </td>

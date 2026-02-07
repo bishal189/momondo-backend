@@ -10,20 +10,22 @@ interface User {
   phone_number: string;
   invitation_code: string;
   role: string;
-  created_by: string | null;
-  status: 'Active' | 'Inactive';
+  level?: { id: number; level: number; level_name: string; required_points: number; commission_rate: string; min_orders: number; benefits: string; status: string; created_at: string } | null;
+  created_by?: number;
+  created_by_email?: string;
+  created_by_username?: string;
   date_joined: string;
-  last_login: string | null;
-  level_id?: number | null;
-  level_name?: string | null;
+  last_login?: string | null;
+  is_active?: boolean;
   is_training_account?: boolean;
+  original_account?: number | null;
   original_account_id?: number | null;
   original_account_email?: string | null;
   original_account_username?: string | null;
-  balance?: number | null;
-  account_type?: string;
-  frozen?: boolean;
+  balance?: string | null;
+  balance_frozen?: boolean;
   balance_frozen_amount?: string | null;
+  training_accounts?: User[];
 }
 
 function UserManagement() {
@@ -83,169 +85,8 @@ function UserManagement() {
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
-  const convertTableDataToLocal = (tableData: {
-    id: number;
-    account_type: string;
-    username: string;
-    email: string;
-    phone_number: string;
-    invitation_code: string;
-    original_account: {
-      id: number;
-      username: string;
-      email: string;
-    } | null;
-    balance: number;
-    role: string;
-    level: {
-      id: number;
-      name: string;
-    } | null;
-    created_by: {
-      id: number;
-      username: string;
-      email: string;
-    } | null;
-    status: string;
-    date_joined: string;
-    last_login: string | null;
-    is_training_account: boolean;
-    frozen?: boolean;
-    balance_frozen?: boolean;
-    balance_frozen_amount?: string | null;
-  }): User => {
-    return {
-      id: tableData.id,
-      username: tableData.username,
-      email: tableData.email,
-      phone_number: tableData.phone_number,
-      invitation_code: tableData.invitation_code,
-      role: tableData.role,
-      created_by: tableData.created_by?.username || null,
-      status: tableData.status === 'Active' ? 'Active' : 'Inactive',
-      date_joined: tableData.date_joined,
-      last_login: tableData.last_login || null,
-      level_id: tableData.level?.id || null,
-      level_name: tableData.level?.name || null,
-      is_training_account: tableData.is_training_account || false,
-      original_account_id: tableData.original_account?.id || null,
-      original_account_email: tableData.original_account?.email || null,
-      original_account_username: tableData.original_account?.username || null,
-      balance: tableData.balance || null,
-      account_type: tableData.account_type || undefined,
-      frozen: tableData.balance_frozen ?? tableData.frozen ?? false,
-      balance_frozen_amount: tableData.balance_frozen_amount ?? null,
-    };
-  };
-
-  const convertApiUserToLocal = (apiUser: {
-    id: number;
-    email: string;
-    username: string;
-    phone_number: string;
-    invitation_code: string;
-    role: string;
-    level?: {
-      id: number;
-      level: number;
-      level_name: string;
-      required_points: number;
-      commission_rate: string;
-      min_orders: number;
-      benefits: string;
-      status: string;
-      created_at: string;
-    } | null;
-    created_by?: number;
-    created_by_email?: string;
-    created_by_username?: string;
-    date_joined: string;
-    last_login?: string | null;
-    is_active?: boolean;
-    is_training_account?: boolean;
-    original_account_id?: number | null;
-    original_account_email?: string | null;
-    original_account_username?: string | null;
-    balance?: string | null;
-    balance_frozen?: boolean;
-    balance_frozen_amount?: string | null;
-  }): User => {
-    return {
-      id: apiUser.id,
-      username: apiUser.username,
-      email: apiUser.email,
-      phone_number: apiUser.phone_number,
-      invitation_code: apiUser.invitation_code,
-      role: apiUser.role,
-      created_by: apiUser.created_by_username || null,
-      status: apiUser.is_active !== false ? 'Active' : 'Inactive',
-      date_joined: apiUser.date_joined,
-      last_login: apiUser.last_login || null,
-      level_id: apiUser.level?.id || null,
-      level_name: apiUser.level?.level_name || null,
-      is_training_account: apiUser.is_training_account || false,
-      original_account_id: apiUser.original_account_id || null,
-      original_account_email: apiUser.original_account_email || null,
-      original_account_username: apiUser.original_account_username || null,
-      balance: apiUser.balance ? parseFloat(apiUser.balance) : null,
-      frozen: apiUser.balance_frozen ?? false,
-      balance_frozen_amount: apiUser.balance_frozen_amount ?? null,
-    };
-  };
-
-  const convertAdminApiUserToLocal = (apiUser: {
-    id: number;
-    username: string;
-    email: string;
-    phone_number: string;
-    invitation_code: string;
-    role: string;
-    level?: {
-      id: number;
-      level: number;
-      level_name: string;
-      required_points: number;
-      commission_rate: string;
-      min_orders: number;
-      benefits: string;
-      status: string;
-      created_at: string;
-    } | null;
-    created_by?: string;
-    created_by_id?: number;
-    created_by_email?: string;
-    status?: string;
-    date_joined: string;
-    last_login?: string | null;
-    is_training_account?: boolean;
-    original_account_id?: number | null;
-    original_account_email?: string | null;
-    original_account_username?: string | null;
-    balance?: string | null;
-    balance_frozen?: boolean;
-    balance_frozen_amount?: string | null;
-  }): User => {
-    return {
-      id: apiUser.id,
-      username: apiUser.username,
-      email: apiUser.email,
-      phone_number: apiUser.phone_number,
-      invitation_code: apiUser.invitation_code,
-      role: apiUser.role,
-      created_by: apiUser.created_by || null,
-      status: apiUser.status === 'Active' ? 'Active' : 'Inactive',
-      date_joined: apiUser.date_joined,
-      last_login: apiUser.last_login || null,
-      level_id: apiUser.level?.id || null,
-      level_name: apiUser.level?.level_name || null,
-      is_training_account: apiUser.is_training_account || false,
-      original_account_id: apiUser.original_account_id || null,
-      original_account_email: apiUser.original_account_email || null,
-      original_account_username: apiUser.original_account_username || null,
-      balance: apiUser.balance ? parseFloat(apiUser.balance) : null,
-      frozen: apiUser.balance_frozen ?? false,
-      balance_frozen_amount: apiUser.balance_frozen_amount ?? null,
-    };
+  const flattenUsersResponse = (usersList: User[]): User[] => {
+    return usersList.flatMap((u) => [u, ...(u.training_accounts ?? [])]);
   };
 
   const fetchUsers = async () => {
@@ -253,28 +94,11 @@ function UserManagement() {
     setListError('');
 
     try {
-      let response;
-      if (isAdmin) {
-        response = await api.getAdminAgentUsers();
-        if (response.flat_list && response.flat_list.length > 0) {
-          setUsers(response.flat_list.map(convertAdminApiUserToLocal));
-        } else if (response.table_data && response.table_data.length > 0) {
-          setUsers(response.table_data.map(convertTableDataToLocal));
-        } else {
-          const usersList = response.users || [];
-          setUsers(usersList.map(convertAdminApiUserToLocal));
-        }
-      } else {
-        response = await api.getMyUsers();
-        if (response.flat_list && response.flat_list.length > 0) {
-          setUsers(response.flat_list.map(convertApiUserToLocal));
-        } else if (response.table_data && response.table_data.length > 0) {
-          setUsers(response.table_data.map(convertTableDataToLocal));
-        } else {
-          const usersList = response.users || [];
-          setUsers(usersList.map(convertApiUserToLocal));
-        }
-      }
+      const response = isAdmin
+        ? await api.getAdminAgentUsers()
+        : await api.getMyUsers();
+      const usersList = (response.users ?? []) as User[];
+      setUsers(flattenUsersResponse(usersList));
     } catch (err) {
       setListError(err instanceof Error ? err.message : 'Failed to fetch users');
     } finally {
@@ -292,28 +116,11 @@ function UserManagement() {
         setLoading(true);
         setListError('');
 
-        let response;
-        if (adminStatus) {
-          response = await api.getAdminAgentUsers();
-          if (response.flat_list && response.flat_list.length > 0) {
-            setUsers(response.flat_list.map(convertAdminApiUserToLocal));
-          } else if (response.table_data && response.table_data.length > 0) {
-            setUsers(response.table_data.map(convertTableDataToLocal));
-          } else {
-            const usersList = response.users || [];
-            setUsers(usersList.map(convertAdminApiUserToLocal));
-          }
-        } else {
-          response = await api.getMyUsers();
-          if (response.flat_list && response.flat_list.length > 0) {
-            setUsers(response.flat_list.map(convertApiUserToLocal));
-          } else if (response.table_data && response.table_data.length > 0) {
-            setUsers(response.table_data.map(convertTableDataToLocal));
-          } else {
-            const usersList = response.users || [];
-            setUsers(usersList.map(convertApiUserToLocal));
-          }
-        }
+        const response = adminStatus
+          ? await api.getAdminAgentUsers()
+          : await api.getMyUsers();
+        const usersList = (response.users ?? []) as User[];
+        setUsers(flattenUsersResponse(usersList));
       } catch (err) {
         setListError(err instanceof Error ? err.message : 'Failed to fetch users');
       } finally {
@@ -330,7 +137,7 @@ function UserManagement() {
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone_number.includes(searchTerm) ||
       user.invitation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.created_by && user.created_by.toLowerCase().includes(searchTerm.toLowerCase()))
+      (user.created_by_username && user.created_by_username.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -407,8 +214,8 @@ function UserManagement() {
     try {
       const response = await api.getLevels({ status: 'ACTIVE' });
       setLevels(response.results);
-      if (user.level_id) {
-        setSelectedLevelId(user.level_id.toString());
+      if (user.level?.id) {
+        setSelectedLevelId(user.level.id.toString());
       } else {
         setSelectedLevelId('');
       }
@@ -534,7 +341,7 @@ function UserManagement() {
   };
 
   const handleOpenResetModal = (user: User) => {
-    if (!user.level_id) {
+    if (!user.level?.id) {
       alert('This user does not have a level assigned. Please assign a level first.');
       return;
     }
@@ -550,13 +357,13 @@ function UserManagement() {
   };
 
   const handleConfirmReset = async () => {
-    if (!selectedUserForReset || !selectedUserForReset.level_id) return;
+    if (!selectedUserForReset || !selectedUserForReset.level?.id) return;
 
     setResetLoading(true);
     setResetError('');
 
     try {
-      await api.resetUserOrder(selectedUserForReset.id, selectedUserForReset.level_id);
+      await api.resetUserOrder(selectedUserForReset.id, selectedUserForReset.level.id);
       handleCloseResetModal();
       await fetchUsers();
     } catch (err: any) {
@@ -753,7 +560,6 @@ function UserManagement() {
 
     const errors: Record<string, string[]> = {};
 
-    // Username validation
     if (!formData.username || formData.username.trim() === '') {
       errors.username = ['Username is required'];
     } else if (formData.username.trim().length < 3) {
@@ -762,54 +568,46 @@ function UserManagement() {
       errors.username = ['Username can only contain letters, numbers, and underscores'];
     }
 
-    // Email validation
     if (!formData.email || formData.email.trim() === '') {
       errors.email = ['Email is required'];
     } else if (!validateEmail(formData.email.trim())) {
       errors.email = ['Please enter a valid email address'];
     }
 
-    // Phone number validation
     if (!formData.phone_number || formData.phone_number.trim() === '') {
       errors.phone_number = ['Phone number is required'];
     } else if (!validatePhoneNumber(formData.phone_number.trim())) {
       errors.phone_number = ['Please enter a valid phone number (at least 10 digits)'];
     }
 
-    // Login password validation
     if (!formData.login_password || formData.login_password === '') {
       errors.login_password = ['Login password is required'];
     } else if (formData.login_password.length < 6) {
       errors.login_password = ['Login password must be at least 6 characters long'];
     }
 
-    // Confirm login password validation
     if (!formData.confirm_login_password || formData.confirm_login_password === '') {
       errors.confirm_login_password = ['Please confirm your login password'];
     } else if (formData.login_password !== formData.confirm_login_password) {
       errors.confirm_login_password = ['Login passwords do not match'];
     }
 
-    // Original account refer code validation
     if (!formData.original_account_refer_code || formData.original_account_refer_code.trim() === '') {
       errors.original_account_refer_code = ['Original account refer code is required'];
     }
 
-    // Withdraw password validation
     if (!formData.withdraw_password || formData.withdraw_password === '') {
       errors.withdraw_password = ['Withdraw password is required'];
     } else if (formData.withdraw_password.length < 4) {
       errors.withdraw_password = ['Withdraw password must be at least 4 characters long'];
     }
 
-    // Confirm withdraw password validation
     if (!formData.confirm_withdraw_password || formData.confirm_withdraw_password === '') {
       errors.confirm_withdraw_password = ['Please confirm your withdraw password'];
     } else if (formData.withdraw_password !== formData.confirm_withdraw_password) {
       errors.confirm_withdraw_password = ['Withdraw passwords do not match'];
     }
 
-    // If there are validation errors, set them and return
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -957,7 +755,7 @@ function UserManagement() {
                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{user.id}</td>
                       <td className="px-4 py-3 text-sm">
-                        {user.account_type === 'Training' || user.is_training_account ? (
+                        {user.is_training_account ? (
                           <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
                             Training
                           </span>
@@ -990,14 +788,14 @@ function UserManagement() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                        {user.level_name || '-'}
+                        {user.level?.level_name ?? '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                        {user.created_by || '-'}
+                        {user.created_by_username ?? '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm">{getStatusBadge(user.status)}</td>
+                      <td className="px-4 py-3 text-sm">{getStatusBadge(user.is_active !== false ? 'Active' : 'Inactive')}</td>
                       <td className="px-4 py-3 text-sm">
-                        {user.frozen ? (
+                        {user.balance_frozen ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-white bg-red-600 dark:bg-red-700 animate-frozen">
                             Frozen
                           </span>
@@ -1015,7 +813,7 @@ function UserManagement() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(user.date_joined)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(user.last_login)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(user.last_login ?? null)}</td>
                       <td className="px-4 py-3 text-sm">
                         <div className="flex items-center gap-2">
                           <button
@@ -1053,7 +851,7 @@ function UserManagement() {
                           >
                             Edit / Change password
                           </button>
-                          {user.status === 'Active' ? (
+                          {user.is_active !== false ? (
                             <button
                               onClick={() => handleDeactivate(user.id)}
                               disabled={actionLoading === user.id}

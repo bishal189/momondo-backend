@@ -90,6 +90,49 @@ export interface Level {
   frozen_commission_rate?: number | null;
 }
 
+export interface AgentUserListItem {
+  id: number;
+  email: string;
+  username: string;
+  phone_number: string;
+  invitation_code: string;
+  role: string;
+  level: {
+    id: number;
+    level: number;
+    level_name: string;
+    required_points: number;
+    commission_rate: string;
+    frozen_commission_rate?: string | null;
+    min_orders: number;
+    price_min_percent?: string | null;
+    price_max_percent?: string | null;
+    benefits: string;
+    status: string;
+    created_at: string;
+  } | null;
+  created_by?: number;
+  created_by_email?: string;
+  created_by_username?: string;
+  original_account?: number | null;
+  original_account_id?: number | null;
+  original_account_email?: string | null;
+  original_account_username?: string | null;
+  is_training_account?: boolean;
+  balance?: string | null;
+  balance_frozen?: boolean;
+  balance_frozen_amount?: string | null;
+  date_joined: string;
+  last_login?: string | null;
+  is_active?: boolean;
+  training_accounts?: AgentUserListItem[];
+}
+
+export interface AgentUsersResponse {
+  users: AgentUserListItem[];
+  count: number;
+}
+
 export interface LevelsResponse {
   count: number;
   next: string | null;
@@ -403,47 +446,7 @@ export const api = {
     return response.json();
   },
 
-  async getMyUsers(): Promise<{
-    table_data?: Array<{
-      id: number;
-      account_type: string;
-      username: string;
-      email: string;
-      phone_number: string;
-      invitation_code: string;
-      original_account: {
-        id: number;
-        username: string;
-        email: string;
-      } | null;
-      balance: number;
-      role: string;
-      level: {
-        id: number;
-        name: string;
-      } | null;
-      created_by: {
-        id: number;
-        username: string;
-        email: string;
-      } | null;
-      status: string;
-      date_joined: string;
-      last_login: string | null;
-      is_training_account: boolean;
-      frozen?: boolean;
-      balance_frozen?: boolean;
-      balance_frozen_amount?: string | null;
-    }>;
-    users?: Array<any>;
-    flat_list?: Array<any>;
-    count: number;
-    summary?: {
-      original_accounts: number;
-      training_accounts: number;
-      total: number;
-    };
-  }> {
+  async getMyUsers(): Promise<AgentUsersResponse> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/my-users/`, {
       method: 'GET',
     });
@@ -456,47 +459,7 @@ export const api = {
     return response.json();
   },
 
-  async getAdminAgentUsers(): Promise<{
-    table_data?: Array<{
-      id: number;
-      account_type: string;
-      username: string;
-      email: string;
-      phone_number: string;
-      invitation_code: string;
-      original_account: {
-        id: number;
-        username: string;
-        email: string;
-      } | null;
-      balance: number;
-      role: string;
-      level: {
-        id: number;
-        name: string;
-      } | null;
-      created_by: {
-        id: number;
-        username: string;
-        email: string;
-      } | null;
-      status: string;
-      date_joined: string;
-      last_login: string | null;
-      is_training_account: boolean;
-      frozen?: boolean;
-      balance_frozen?: boolean;
-      balance_frozen_amount?: string | null;
-    }>;
-    users?: Array<any>;
-    flat_list?: Array<any>;
-    count: number;
-    summary?: {
-      original_accounts: number;
-      training_accounts: number;
-      total: number;
-    };
-  }> {
+  async getAdminAgentUsers(): Promise<AgentUsersResponse> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/agents/users/`, {
       method: 'GET',
     });

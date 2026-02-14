@@ -102,6 +102,7 @@ function UserOrders() {
   const [startContinuousAfter, setStartContinuousAfter] = useState('0');
   const [pendingAssignedProducts, setPendingAssignedProducts] = useState<AssignedProduct[]>([]);
   const [pendingRemoves, setPendingRemoves] = useState<number[]>([]);
+  const [pendingPositionUpdates, setPendingPositionUpdates] = useState<Record<number, number>>({});
   const [overviewUpdateLoading, setOverviewUpdateLoading] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
 
@@ -111,6 +112,7 @@ function UserOrders() {
   }, [orderOverview?.start_continuous_orders_after]);
 
   useEffect(() => {
+    setPendingPositionUpdates({});
     if (pendingAssignedProducts.length === 0) return;
     const start = parseInt(startContinuousAfter, 10) || 0;
     setPendingAssignedProducts((prev) =>
@@ -220,6 +222,48 @@ function UserOrders() {
     }
   };
 
+  const handleReplaceNextOrder = (product: Product) => {
+    const start = parseInt(startContinuousAfter, 10) || 0;
+    const nextPos = start + 1;
+    const maxVal = orderOverview?.max_orders_by_level ?? Infinity;
+    if (nextPos > maxVal) {
+      toast.error('Next position exceeds maximum orders by level.');
+      return;
+    }
+    const merged = [...assignedFiltered, ...pendingAssignedProducts];
+    const withEffectivePos = merged.map((p) => ({ ...p, effectivePosition: pendingPositionUpdates[p.id] ?? p.position }));
+    const sortedList = [...withEffectivePos].sort((a, b) => a.effectivePosition - b.effectivePosition);
+    const itemAtNext = sortedList.find((p) => p.effectivePosition === nextPos);
+    if (!itemAtNext) {
+      setPendingAssignedProducts((prev) => {
+        const withoutThis = prev.filter((p) => p.id !== product.id);
+        return [...withoutThis, { id: product.id, title: product.title, position: nextPos, price: product.price }];
+      });
+      return;
+    }
+    const isFromServer = assignedFiltered.some((p) => p.id === itemAtNext.id);
+    if (isFromServer) {
+      setPendingRemoves((prev) => (prev.includes(itemAtNext.id) ? prev : [...prev, itemAtNext.id]));
+    }
+    const shifting = sortedList.filter((p) => p.effectivePosition > nextPos);
+    setPendingPositionUpdates((prev) => {
+      const next: Record<number, number> = { ...prev };
+      shifting.forEach((p) => {
+        next[p.id] = p.effectivePosition - 1;
+      });
+      return next;
+    });
+    const newLastPosition = start + sortedList.length;
+    setPendingAssignedProducts((prev) => {
+      const removeIds = new Set([product.id]);
+      if (!isFromServer) removeIds.add(itemAtNext.id);
+      return [
+        ...prev.filter((p) => !removeIds.has(p.id)),
+        { id: product.id, title: product.title, position: newLastPosition, price: product.price },
+      ];
+    });
+  };
+
   const handleSaveOk = async () => {
     if (!userId || orderOverview == null) return;
     setOverviewUpdateLoading(true);
@@ -235,7 +279,9 @@ function UserOrders() {
         return;
       }
       const assignedFiltered = (orderOverview.assigned_products ?? []).filter((p) => !pendingRemoves.includes(p.id));
-      const merged = [...assignedFiltered, ...pendingAssignedProducts].sort((a, b) => a.position - b.position);
+      const merged = [...assignedFiltered, ...pendingAssignedProducts]
+        .map((p) => ({ ...p, position: pendingPositionUpdates[p.id] ?? p.position }))
+        .sort((a, b) => a.position - b.position);
       const assigned_products = merged.map((p) => ({ product_id: p.id, position: p.position }));
       await api.updateUserOrderOverview(parseInt(userId, 10), {
         start_continuous_orders_after: num,
@@ -244,6 +290,7 @@ function UserOrders() {
       toast.success('Journey has been set');
       setPendingAssignedProducts([]);
       setPendingRemoves([]);
+      setPendingPositionUpdates({});
       await fetchOrderOverview(true);
       await fetchProducts(true);
     } catch (err) {
@@ -261,6 +308,7 @@ function UserOrders() {
       await api.resetUserContinuousOrders(parseInt(userId, 10));
       setPendingAssignedProducts([]);
       setPendingRemoves([]);
+      setPendingPositionUpdates({});
       toast.success('Continuous orders reset.');
       await fetchOrderOverview(true);
     } catch (err) {
@@ -283,10 +331,13 @@ function UserOrders() {
     () => assignedProducts.filter((p) => !pendingRemoves.includes(p.id)),
     [assignedProducts, pendingRemoves]
   );
-  const sortedAssigned = useMemo(
-    () => [...assignedFiltered, ...pendingAssignedProducts].sort((a, b) => a.position - b.position),
-    [assignedFiltered, pendingAssignedProducts]
-  );
+  const sortedAssigned = useMemo(() => {
+    const merged = [...assignedFiltered, ...pendingAssignedProducts].map((p) => ({
+      ...p,
+      position: pendingPositionUpdates[p.id] ?? p.position,
+    }));
+    return merged.sort((a, b) => a.position - b.position);
+  }, [assignedFiltered, pendingAssignedProducts, pendingPositionUpdates]);
   const nextPositions = useMemo(() => {
     const start = parseInt(startContinuousAfter, 10) || 0;
     const maxVal = orderOverview?.max_orders_by_level ?? 30;
@@ -461,7 +512,12 @@ function UserOrders() {
                   <div
                     className="absolute flex flex-col items-center gap-0.5 -translate-x-1/2"
                     style={{
-                      left: dailyAvailable > 0 ? `${Math.min(98, Math.max(2, (todayOrders / dailyAvailable) * 100))}%` : '10%',
+                      left:
+                        dailyAvailable > 0
+                          ? todayOrders >= dailyAvailable
+                            ? '100%'
+                            : `${Math.min(98, Math.max(2, (todayOrders / dailyAvailable) * 100))}%`
+                          : '10%',
                       top: '52px',
                     }}
                   >
@@ -590,14 +646,23 @@ function UserOrders() {
                           <td className="px-4 py-3 text-sm">{getStatusBadge(product.status)}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{product.createdAt}</td>
                           <td className="px-4 py-3 text-sm">
-                            <button
-                              type="button"
-                              onClick={() => handleAddToContinuousOrder(product)}
-                              disabled={sortedAssigned.some((p) => p.id === product.id)}
-                              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-                            >
-                              Add to Continuous Order
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleAddToContinuousOrder(product)}
+                                disabled={sortedAssigned.some((p) => p.id === product.id)}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                              >
+                                Add to Continuous Order
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReplaceNextOrder(product)}
+                                className="px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors font-medium"
+                              >
+                                Replace Next Order
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))

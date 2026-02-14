@@ -916,6 +916,38 @@ export const api = {
     return response.json();
   },
 
+  async addProductToUser(userId: number, productId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/product/${productId}/add/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to add product to user');
+    }
+
+    return response.json();
+  },
+
+  async removeProductFromUser(userId: number, productId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/product/${productId}/remove/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to remove product from user');
+    }
+
+    return response.json();
+  },
+
   async getLevelProducts(levelId: number): Promise<{
     level: {
       id: number;
@@ -1082,6 +1114,63 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.detail || 'Failed to fetch completed count');
+    }
+
+    return response.json();
+  },
+
+  async resetUserContinuousOrders(userId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/reset-continuous-orders/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to reset continuous orders');
+    }
+
+    return response.json();
+  },
+
+  async getUserOrderOverview(userId: number): Promise<{
+    user_id: number;
+    username: string;
+    current_orders_made: number;
+    orders_received_today: number;
+    max_orders_by_level: number;
+    start_continuous_orders_after: number;
+    daily_available_orders: number;
+    assigned_products: Array<{ id: number; title: string; position: number; price?: string | number }>;
+  }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/order-overview/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch order overview');
+    }
+
+    return response.json();
+  },
+
+  async updateUserOrderOverview(
+    userId: number,
+    data: {
+      start_continuous_orders_after: number;
+      assigned_products: { product_id: number; position: number }[];
+    }
+  ): Promise<{ start_continuous_orders_after: number; assigned_products?: { product_id: number; position: number }[] }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/order-overview/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to update order overview');
     }
 
     return response.json();

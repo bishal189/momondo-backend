@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
+const ITEMS_PER_PAGE = 10;
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/150?text=No+Image';
+
 interface Product {
   id: number;
   title: string;
@@ -17,7 +20,25 @@ interface Product {
   inserted_for_user?: boolean;
 }
 
-const transformApiProduct = (apiProduct: {
+interface AssignedProduct {
+  id: number;
+  title: string;
+  position: number;
+  price?: string | number;
+}
+
+interface OrderOverview {
+  user_id: number;
+  username: string;
+  current_orders_made: number;
+  orders_received_today: number;
+  max_orders_by_level: number;
+  start_continuous_orders_after: number;
+  daily_available_orders: number;
+  assigned_products: AssignedProduct[];
+}
+
+function transformApiProduct(apiProduct: {
   id: number;
   image: string | null;
   image_url: string | null;
@@ -29,7 +50,7 @@ const transformApiProduct = (apiProduct: {
   position?: number;
   review_status?: string;
   inserted_for_user?: boolean;
-}): Product => {
+}): Product {
   return {
     id: apiProduct.id,
     title: apiProduct.title,
@@ -37,73 +58,72 @@ const transformApiProduct = (apiProduct: {
     image: apiProduct.image_url || '',
     price: apiProduct.price || '0.00',
     status: apiProduct.status === 'ACTIVE' ? 'Active' : 'Inactive',
-    createdAt: new Date(apiProduct.created_at).toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
+    createdAt: new Date(apiProduct.created_at)
+      .toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+      .replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
     position: apiProduct.position,
     reviewStatus: apiProduct.review_status,
     inserted_for_user: apiProduct.inserted_for_user,
   };
-};
+}
+
+function getStatusBadge(status: string) {
+  const styles: Record<string, string> = {
+    Active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    Inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+  };
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] ?? ''}`}>{status}</span>
+  );
+}
 
 function UserOrders() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [userProductsData, setUserProductsData] = useState<{
-    user_id: number;
-    username: string;
-    min_orders: number;
-  } | null>(null);
-  const [userProductsLoading, setUserProductsLoading] = useState(true);
-  const [completedCount, setCompletedCount] = useState<{
-    user_id: number;
-    username: string;
-    completed: number;
-    min_orders: number;
-  } | null>(null);
-  const [isInsertModalOpen, setIsInsertModalOpen] = useState(false);
-  const [selectedProductForInsert, setSelectedProductForInsert] = useState<Product | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
-  const [insertLoading, setInsertLoading] = useState(false);
-  const [insertError, setInsertError] = useState('');
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
-  const [editFormData, setEditFormData] = useState<{ title: string; description: string; price: string; status: 'Active' | 'Inactive' }>({
-    title: '',
-    description: '',
-    price: '',
-    status: 'Active',
-  });
-  const [editImageFile, setEditImageFile] = useState<File | null>(null);
-  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [editError, setEditError] = useState('');
-  const [updateLoading, setUpdateLoading] = useState(false);
-  const itemsPerPage = 10;
+
+  const [orderOverview, setOrderOverview] = useState<OrderOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState('');
+  const [startContinuousAfter, setStartContinuousAfter] = useState('0');
+  const [pendingAssignedProducts, setPendingAssignedProducts] = useState<AssignedProduct[]>([]);
+  const [pendingRemoves, setPendingRemoves] = useState<number[]>([]);
+  const [overviewUpdateLoading, setOverviewUpdateLoading] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
 
   useEffect(() => {
-    if (userId) {
-      fetchUserProducts();
-      fetchCompletedCount();
-    }
+    const v = orderOverview?.start_continuous_orders_after;
+    if (v != null) setStartContinuousAfter(String(v));
+  }, [orderOverview?.start_continuous_orders_after]);
+
+  useEffect(() => {
+    if (pendingAssignedProducts.length === 0) return;
+    const start = parseInt(startContinuousAfter, 10) || 0;
+    setPendingAssignedProducts((prev) =>
+      prev.map((p, i) => ({ ...p, position: start + 1 + i }))
+    );
+  }, [startContinuousAfter]);
+
+  useEffect(() => {
+    if (userId) fetchOrderOverview();
   }, [userId]);
 
   useEffect(() => {
-    if (userId) {
-      fetchProducts();
-    }
+    if (userId) fetchProducts();
   }, [userId, searchTerm, currentPage]);
 
   useEffect(() => {
@@ -112,303 +132,376 @@ function UserOrders() {
 
   useEffect(() => {
     if (!userId) return;
-
-    const pollInterval = setInterval(() => {
-      fetchCompletedCount();
-    }, 3000);
-
-    return () => clearInterval(pollInterval);
+    const interval = setInterval(() => fetchOrderOverview(true), 3000);
+    return () => clearInterval(interval);
   }, [userId]);
 
-  const fetchCompletedCount = async () => {
+  const fetchOrderOverview = async (silent = false) => {
     if (!userId) return;
-    
-    try {
-      const data = await api.getUserCompletedCount(parseInt(userId));
-      setCompletedCount(data);
-    } catch (err) {
-      console.error('Error fetching completed count:', err);
+    if (!silent) {
+      setOverviewLoading(true);
+      setOverviewError('');
     }
-  };
-
-  const fetchUserProducts = async () => {
-    if (!userId) return;
-    
-    setUserProductsLoading(true);
     try {
-      const data = await api.getUserProducts(parseInt(userId));
-      setUserProductsData(data);
+      const data = await api.getUserOrderOverview(parseInt(userId, 10));
+      setOrderOverview((prev) => {
+        if (!prev) return data as OrderOverview;
+        if (
+          prev.orders_received_today === data.orders_received_today &&
+          prev.current_orders_made === data.current_orders_made &&
+          prev.daily_available_orders === data.daily_available_orders &&
+          prev.assigned_products?.length === data.assigned_products?.length &&
+          (data.assigned_products ?? []).every(
+            (p, i) =>
+              prev.assigned_products?.[i]?.id === p.id &&
+              prev.assigned_products?.[i]?.position === p.position &&
+              prev.assigned_products?.[i]?.price === p.price
+          )
+        ) {
+          return prev;
+        }
+        return data as OrderOverview;
+      });
     } catch (err) {
-      console.error('Error fetching user products:', err);
+      if (!silent) setOverviewError(err instanceof Error ? err.message : 'Failed to load order overview');
     } finally {
-      setUserProductsLoading(false);
+      if (!silent) setOverviewLoading(false);
     }
   };
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    setError('');
-
+  const fetchProducts = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const params: { status?: 'ACTIVE'; search?: string; limit: number; offset: number; user_id?: number } = {
         status: 'ACTIVE',
-        limit: itemsPerPage,
-        offset: (currentPage - 1) * itemsPerPage,
+        limit: ITEMS_PER_PAGE,
+        offset: (currentPage - 1) * ITEMS_PER_PAGE,
       };
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-      if (userId) {
-        params.user_id = parseInt(userId, 10);
-      }
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      if (userId) params.user_id = parseInt(userId, 10);
 
       const response = await api.getProducts(params);
-      console.log(response);
-      
-      const transformedProducts = response.products.map(transformApiProduct);
-      setProducts(transformedProducts);
-      setTotalCount(response.count ?? transformedProducts.length);
+      setProducts(response.products.map(transformApiProduct));
+      setTotalCount(response.count ?? response.products.length);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch products');
+      if (!silent) setError(err instanceof Error ? err.message : 'Failed to fetch products');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  const minOrders = completedCount?.min_orders || userProductsData?.min_orders || 0;
-  const totalBoxes = minOrders > 0 ? minOrders : totalCount;
-  const completedProducts = completedCount?.completed || 0;
-  const progressPercentage = totalBoxes > 0 ? (completedProducts / totalBoxes) * 100 : 0;
-  
-  const progressBoxes = Array.from({ length: totalBoxes }, (_, index) => index + 1);
-
-  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
-  const paginatedProducts = useMemo(
-    () =>
-      [...products].sort((a, b) => {
-        const pa = a.position ?? 999999;
-        const pb = b.position ?? 999999;
-        return pa - pb;
-      }),
-    [products]
-  );
-
-  const handleInsertClick = (product: Product) => {
-    setSelectedProductForInsert(product);
-    setSelectedPosition(null);
-    setIsInsertModalOpen(true);
+  const handleAddToContinuousOrder = (product: Product) => {
+    const assigned = orderOverview?.assigned_products ?? [];
+    const start = parseInt(startContinuousAfter, 10) || 0;
+    const nextPosition = start + 1 + assigned.length + pendingAssignedProducts.length;
+    const maxVal = orderOverview?.max_orders_by_level ?? Infinity;
+    if (nextPosition > maxVal) {
+      toast.error('Cannot add more: next position would exceed maximum orders by level.');
+      return;
+    }
+    if (pendingAssignedProducts.some((p) => p.id === product.id) || assigned.some((p) => p.id === product.id)) {
+      toast.error('Product already in continuous orders.');
+      return;
+    }
+    setPendingAssignedProducts((prev) => [
+      ...prev,
+      { id: product.id, title: product.title, position: nextPosition, price: product.price },
+    ]);
   };
 
-  const handleCloseInsertModal = () => {
-    setIsInsertModalOpen(false);
-    setSelectedProductForInsert(null);
-    setSelectedPosition(null);
-    setInsertError('');
+  const handleRemoveFromList = (p: AssignedProduct) => {
+    if (pendingAssignedProducts.some((x) => x.id === p.id)) {
+      setPendingAssignedProducts((prev) => prev.filter((x) => x.id !== p.id));
+    } else {
+      setPendingRemoves((prev) => (prev.includes(p.id) ? prev : [...prev, p.id]));
+    }
   };
 
-  const handleEditClick = async (product: Product) => {
-    setSelectedProductForEdit(product);
-    setEditError('');
-    setEditLoading(true);
-    setIsEditModalOpen(true);
-    setEditFormData({ title: product.title, description: product.description, price: product.price || '0.00', status: product.status });
-    setEditImageFile(null);
-    setEditImagePreview(product.image || null);
+  const handleSaveOk = async () => {
+    if (!userId || orderOverview == null) return;
+    setOverviewUpdateLoading(true);
     try {
-      const apiProduct = await api.getProductDetail(product.id);
-      const transformed = transformApiProduct(apiProduct);
-      setEditFormData({ title: transformed.title, description: transformed.description, price: transformed.price || '0.00', status: transformed.status });
-      setEditImagePreview(transformed.image || null);
-    } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Failed to load product details');
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  const handleCloseEditModal = () => {
-    setIsEditModalOpen(false);
-    setSelectedProductForEdit(null);
-    setEditFormData({ title: '', description: '', price: '', status: 'Active' });
-    setEditImageFile(null);
-    setEditImagePreview(null);
-    setEditError('');
-  };
-
-  const handleEditInputChange = (field: keyof typeof editFormData, value: string) => {
-    setEditFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setEditImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setEditImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!selectedProductForEdit) return;
-    setEditError('');
-    setUpdateLoading(true);
-    try {
-      await api.updateProduct(selectedProductForEdit.id, {
-        title: editFormData.title.trim(),
-        description: editFormData.description.trim(),
-        price: editFormData.price.trim() || '0.00',
-        status: (editFormData.status === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
-        image: editImageFile || undefined,
+      const num = parseInt(startContinuousAfter, 10);
+      const maxVal = orderOverview.max_orders_by_level ?? Infinity;
+      if (Number.isNaN(num) || num < 0) {
+        toast.error('Enter a valid number (0 or greater).');
+        return;
+      }
+      if (num > maxVal) {
+        toast.error('Cannot be greater than Maximum orders received by level (' + maxVal + ').');
+        return;
+      }
+      const assignedFiltered = (orderOverview.assigned_products ?? []).filter((p) => !pendingRemoves.includes(p.id));
+      const merged = [...assignedFiltered, ...pendingAssignedProducts].sort((a, b) => a.position - b.position);
+      const assigned_products = merged.map((p) => ({ product_id: p.id, position: p.position }));
+      await api.updateUserOrderOverview(parseInt(userId, 10), {
+        start_continuous_orders_after: num,
+        assigned_products,
       });
-      toast.success('Product updated successfully.');
-      handleCloseEditModal();
-      await fetchProducts();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update product';
-      setEditError(msg);
-      toast.error(msg);
-    } finally {
-      setUpdateLoading(false);
-    }
-  };
-
-  const handleInsertAtPosition = async () => {
-    if (!userId || !selectedProductForInsert || !selectedPosition) return;
-
-    const productId = selectedProductForInsert.id;
-    const previousPosition = selectedProductForInsert.position ?? null;
-
-    setInsertLoading(true);
-    setInsertError('');
-
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === productId) return { ...p, position: selectedPosition, inserted_for_user: true };
-        const pos = p.position ?? 0;
-        if (previousPosition == null) {
-          if (pos >= selectedPosition) return { ...p, position: pos + 1 };
-          return p;
-        }
-        if (previousPosition > selectedPosition) {
-          if (pos >= selectedPosition && pos < previousPosition) return { ...p, position: pos + 1 };
-          return p;
-        }
-        if (previousPosition < selectedPosition) {
-          if (pos > previousPosition && pos <= selectedPosition) return { ...p, position: pos - 1 };
-          return p;
-        }
-        return p;
-      })
-    );
-    handleCloseInsertModal();
-
-    try {
-      await api.insertProductAtPosition(productId, selectedPosition, parseInt(userId, 10));
-      toast.success('Product added successfully.');
-      await fetchCompletedCount();
+      toast.success('Journey has been set');
+      setPendingAssignedProducts([]);
+      setPendingRemoves([]);
+      await fetchOrderOverview(true);
+      await fetchProducts(true);
     } catch (err) {
-      await fetchProducts();
-      setInsertError(err instanceof Error ? err.message : 'Failed to insert product at position');
-      setIsInsertModalOpen(true);
-      setSelectedProductForInsert(selectedProductForInsert);
-      setSelectedPosition(selectedPosition);
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
     } finally {
-      setInsertLoading(false);
+      setOverviewUpdateLoading(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      Active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      Inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-    };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles]}`}>
-        {status}
-      </span>
-    );
+  const performReset = async () => {
+    if (!userId) return;
+    setShowResetConfirmModal(false);
+    setOverviewUpdateLoading(true);
+    try {
+      await api.resetUserContinuousOrders(parseInt(userId, 10));
+      setPendingAssignedProducts([]);
+      setPendingRemoves([]);
+      toast.success('Continuous orders reset.');
+      await fetchOrderOverview(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reset continuous orders');
+    } finally {
+      setOverviewUpdateLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (!userId) return;
+    setShowResetConfirmModal(true);
+  };
+
+  const displayUsername = orderOverview?.username ?? 'User';
+  const dailyAvailable = orderOverview?.daily_available_orders ?? 30;
+  const todayOrders = orderOverview?.orders_received_today ?? 0;
+  const assignedProducts = orderOverview?.assigned_products ?? [];
+  const assignedFiltered = useMemo(
+    () => assignedProducts.filter((p) => !pendingRemoves.includes(p.id)),
+    [assignedProducts, pendingRemoves]
+  );
+  const sortedAssigned = useMemo(
+    () => [...assignedFiltered, ...pendingAssignedProducts].sort((a, b) => a.position - b.position),
+    [assignedFiltered, pendingAssignedProducts]
+  );
+  const nextPositions = useMemo(() => {
+    const start = parseInt(startContinuousAfter, 10) || 0;
+    const maxVal = orderOverview?.max_orders_by_level ?? 30;
+    const positions: number[] = [];
+    for (let i = 1; i <= Math.min(5, Math.max(0, maxVal - start)); i++) {
+      positions.push(start + i);
+    }
+    return positions;
+  }, [startContinuousAfter, orderOverview?.max_orders_by_level]);
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
+
+  const clampStartInput = (v: string) => {
+    setStartContinuousAfter(v);
+    const maxVal = orderOverview?.max_orders_by_level;
+    if (maxVal != null && v !== '' && !Number.isNaN(Number(v)) && Number(v) > maxVal) {
+      setStartContinuousAfter(String(maxVal));
+    }
   };
 
   return (
     <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="max-w-full mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <header className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/dashboard/user-management')}
-              className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="inline-flex items-center gap-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors font-medium"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
+              Back to list
             </button>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Orders</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Current user: {displayUsername}</h1>
           </div>
-        </div>
+        </header>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Progress
-              {(completedCount || userProductsData) && (
-                <span className="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">
-                  ({(completedCount || userProductsData)?.username})
-                </span>
-              )}
-            </h2>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {completedProducts} / {totalBoxes} completed
-            </span>
-          </div>
-          
-          {userProductsLoading ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              Loading progress data...
+          {overviewLoading && (
+            <div className="py-6 text-center text-gray-500 dark:text-gray-400">Loading order overview...</div>
+          )}
+          {overviewError && (
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+              {overviewError}
             </div>
-          ) : totalBoxes > 0 ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">
-                  Progress: <span className="font-medium text-gray-900 dark:text-white">{Math.round(progressPercentage)}%</span>
-                </span>
-                <span className="text-gray-500 dark:text-gray-400">
-                  {completedProducts} of {totalBoxes} orders
-                </span>
+          )}
+          {!overviewLoading && (
+            <div className="space-y-5 flex flex-col">
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current number of orders made:</label>
+                  <input
+                    type="number"
+                    readOnly
+                    value={orderOverview?.current_orders_made ?? 0}
+                    className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Orders received today:</label>
+                  <input
+                    type="number"
+                    readOnly
+                    value={orderOverview?.orders_received_today ?? 0}
+                    className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Maximum orders received by level:</label>
+                  <input
+                    type="number"
+                    readOnly
+                    value={orderOverview?.max_orders_by_level ?? 0}
+                    className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start continuous orders after several orders:</label>
+                  <div className="relative max-w-xs">
+                    <input
+                      type="number"
+                      min={0}
+                      max={orderOverview?.max_orders_by_level ?? undefined}
+                      value={startContinuousAfter}
+                      onChange={(e) => clampStartInput(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    {nextPositions.length > 0 && (
+                      <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        Next product positions: {nextPositions.join(', ')}{nextPositions.length >= 5 ? '…' : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="w-full flex rounded-full h-3 overflow-hidden bg-gray-200 dark:bg-gray-700">
-                {progressBoxes.map((step) => {
-                  const isCompleted = step <= completedProducts;
-                  const isFirst = step === 1;
-                  const isLast = step === totalBoxes;
-                  return (
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Products:</label>
+                <div className="flex flex-col gap-2">
+                  {sortedAssigned.length === 0 ? (
+                    <span className="text-sm text-gray-600 dark:text-gray-300 px-3 py-2 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-700 w-full max-w-xl inline-block">
+                      Please select continuous orders in the product list
+                    </span>
+                  ) : (
+                    sortedAssigned.map((p) => (
+                      <span
+                        key={p.id}
+                        className="inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200 border border-green-200 dark:border-green-700 w-full max-w-xl"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium">({p.position})</span>
+                          <span className="text-green-700 dark:text-green-300">
+                            {p.price != null && p.price !== ''
+                              ? typeof p.price === 'number'
+                                ? p.price.toFixed(2)
+                                : p.price
+                              : '—'}
+                          </span>
+                          <span>{p.title}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveFromList(p);
+                          }}
+                          className="p-0.5 rounded hover:bg-green-200 dark:hover:bg-green-800 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="Remove"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveOk}
+                  disabled={overviewUpdateLoading}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {overviewUpdateLoading ? 'Saving...' : 'OK'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReset()}
+                  disabled={overviewUpdateLoading}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Reset continuous orders
+                </button>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="relative w-full min-h-[128px]">
+                  <div className="absolute left-0 right-0 top-[52px] h-0.5 bg-gray-200 dark:bg-gray-600" />
+                  {Array.from({ length: Math.max(dailyAvailable, 1) + 1 }).map((_, i) => (
                     <div
-                      key={step}
-                      className="relative flex-1 min-w-0 group flex"
-                      style={{ width: `${100 / totalBoxes}%` }}
-                      title={`Order ${step}${isCompleted ? ' (completed)' : ''}`}
+                      key={i}
+                      className="absolute top-[46px] h-3 flex justify-center -translate-x-1/2"
+                      style={{ left: `${(i / Math.max(dailyAvailable, 1)) * 100}%` }}
                     >
-                      <div
-                        className={`h-full flex-1 transition-colors duration-300 ${
-                          !isLast ? 'border-r border-white/40 dark:border-gray-500' : ''
-                        } ${isFirst ? 'rounded-l-full' : ''} ${isLast ? 'rounded-r-full' : ''} ${
-                          isCompleted
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700'
-                            : 'bg-gray-200 dark:bg-gray-700'
-                        }`}
-                      />
+                      <div className="w-px h-3 bg-gray-300 dark:bg-gray-500" />
                     </div>
-                  );
-                })}
+                  ))}
+                  <div
+                    className="absolute flex flex-col items-center gap-0.5 -translate-x-1/2"
+                    style={{
+                      left: dailyAvailable > 0 ? `${Math.min(98, Math.max(2, (todayOrders / dailyAvailable) * 100))}%` : '10%',
+                      top: '52px',
+                    }}
+                  >
+                    <div className="w-1 h-5 bg-red-500 rounded-sm" />
+                    <svg className="w-6 h-6 text-red-500 dark:text-red-400 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
+                    <span className="text-xs font-semibold text-red-600 dark:text-red-400">({todayOrders})</span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Today Orders: {todayOrders}</span>
+                  </div>
+                  {sortedAssigned.map((p) => {
+                    const posPct = dailyAvailable > 0 ? (p.position / dailyAvailable) * 100 : 0;
+                    return (
+                      <div
+                        key={p.id}
+                        className="absolute flex flex-col items-center -translate-x-1/2"
+                        style={{ left: `${Math.min(98, Math.max(2, posPct))}%`, top: 0 }}
+                      >
+                        <div className="relative inline-flex items-center justify-center w-7 h-8">
+                          <svg
+                            className="absolute inset-0 w-full h-full text-green-500 dark:text-green-500 drop-shadow-sm"
+                            viewBox="0 0 24 36"
+                            fill="currentColor"
+                            aria-hidden
+                          >
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 12 12 24 12 24s12-12 12-24C24 5.37 18.63 0 12 0z" />
+                          </svg>
+                          <span className="relative z-10 text-teal-200 dark:text-teal-300 text-xs font-bold select-none" style={{ transform: 'rotate(-45deg)' }}>
+                            {p.position}
+                          </span>
+                        </div>
+                        <div className="w-0.5 h-3 bg-green-500 -mt-0.5 rounded-full" />
+                      </div>
+                    );
+                  })}
+                  <div className="absolute right-0 bottom-0 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Daily Available Orders: {dailyAvailable}
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                <span>1</span>
-                <span>{totalBoxes}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              No orders required
             </div>
           )}
         </div>
@@ -424,12 +517,7 @@ function UserOrders() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <svg
-                  className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -458,7 +546,6 @@ function UserOrders() {
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">#</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Position</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Image</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Title</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
@@ -469,11 +556,12 @@ function UserOrders() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {paginatedProducts.length > 0 ? (
-                      paginatedProducts.map((product, index) => (
+                    {products.length > 0 ? (
+                      products.map((product, index) => (
                         <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{product.position != null ? product.position : 0}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                          </td>
                           <td className="px-4 py-3 text-sm">
                             {product.image ? (
                               <img
@@ -481,8 +569,7 @@ function UserOrders() {
                                 alt={product.title}
                                 className="w-16 h-16 object-cover rounded-lg"
                                 onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = 'https://via.placeholder.com/150?text=No+Image';
+                                  (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
                                 }}
                               />
                             ) : (
@@ -493,16 +580,7 @@ function UserOrders() {
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span>{product.title}</span>
-                              {product.inserted_for_user ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border border-red-200 dark:border-red-800">
-                                  Inserted for neagative - negative balance
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{product.title}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" title={product.description}>
                             {product.description}
                           </td>
@@ -512,26 +590,20 @@ function UserOrders() {
                           <td className="px-4 py-3 text-sm">{getStatusBadge(product.status)}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{product.createdAt}</td>
                           <td className="px-4 py-3 text-sm">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleEditClick(product)}
-                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleInsertClick(product)}
-                                className="px-3 py-1.5 text-xs bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium"
-                              >
-                                Insert
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAddToContinuousOrder(product)}
+                              disabled={sortedAssigned.some((p) => p.id === product.id)}
+                              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                            >
+                              Add to Continuous Order
+                            </button>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                           No products found
                         </td>
                       </tr>
@@ -543,11 +615,12 @@ function UserOrders() {
               {totalPages > 1 && (
                 <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} product{totalCount !== 1 ? 's' : ''}
+                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} product
+                    {totalCount !== 1 ? 's' : ''}
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
                       className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -557,7 +630,7 @@ function UserOrders() {
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
                       className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -571,271 +644,34 @@ function UserOrders() {
         </div>
       </div>
 
-      {isInsertModalOpen && selectedProductForInsert && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Insert Product
-                </h2>
-                <button
-                  onClick={handleCloseInsertModal}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+      {showResetConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
               </div>
-
-              {insertError && (
-                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                  {insertError}
-                </div>
-              )}
-
-              <div className="mb-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Product to insert:</p>
-                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {selectedProductForInsert.image && (
-                      <img
-                        src={selectedProductForInsert.image}
-                        alt={selectedProductForInsert.title}
-                        className="w-12 h-12 object-cover rounded-lg"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'https://via.placeholder.com/150?text=No+Image';
-                        }}
-                      />
-                    )}
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{selectedProductForInsert.title}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{selectedProductForInsert.description}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {totalBoxes > 0 ? (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Position
-                    </label>
-                    <select
-                      value={selectedPosition ?? ''}
-                      onChange={(e) => setSelectedPosition(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Select position (1 to {totalBoxes})</option>
-                      {progressBoxes.map((pos) => (
-                        <option key={pos} value={pos}>
-                          Position {pos}{pos <= completedProducts ? ' (completed)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-6">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      Or select from the list below:
-                    </p>
-                    <div className="max-h-96 overflow-y-auto space-y-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                      {progressBoxes.map((position) => {
-                        const isCompleted = position <= completedProducts;
-                        const isSelected = selectedPosition === position;
-                        return (
-                          <button
-                            key={position}
-                            onClick={() => setSelectedPosition(position)}
-                            disabled={insertLoading}
-                            className={`w-full p-3 text-left border rounded-lg transition-colors ${
-                              isSelected
-                                ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                                : isCompleted
-                                ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Position {position}:
-                                </span>
-                                {isCompleted && (
-                                  <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full">
-                                    Completed
-                                  </span>
-                                )}
-                              </div>
-                              {isSelected && (
-                                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                              {!isSelected && (
-                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="mb-6 text-center py-8 text-gray-500 dark:text-gray-400">
-                  No positions available
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={handleCloseInsertModal}
-                  disabled={insertLoading}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleInsertAtPosition}
-                  disabled={insertLoading || !selectedPosition}
-                  className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {insertLoading ? 'Adding...' : 'Add'}
-                </button>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Confirmation</h3>
             </div>
-          </div>
-        </div>
-      )}
-
-      {isEditModalOpen && selectedProductForEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Edit Product
-                </h2>
-                <button
-                  onClick={handleCloseEditModal}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {editLoading && (
-                <div className="mb-4 text-center py-4">
-                  <p className="text-gray-600 dark:text-gray-400">Loading product details...</p>
-                </div>
-              )}
-
-              {editError && (
-                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                  {editError}
-                </div>
-              )}
-
-              {!editLoading && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSaveEdit();
-                  }}
-                  className="space-y-6"
-                >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Title *</label>
-                    <input
-                      type="text"
-                      value={editFormData.title}
-                      onChange={(e) => handleEditInputChange('title', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                      placeholder="Enter product title..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Description</label>
-                    <textarea
-                      value={editFormData.description}
-                      onChange={(e) => handleEditInputChange('description', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      rows={4}
-                      placeholder="Enter product description..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Price *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editFormData.price}
-                      onChange={(e) => handleEditInputChange('price', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Image</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleEditImageChange}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-900 file:text-white hover:file:bg-gray-800 dark:file:bg-gray-900 dark:file:text-white"
-                    />
-                    {(editImagePreview || selectedProductForEdit.image) && (
-                      <div className="mt-2">
-                        <img
-                          src={editImagePreview || selectedProductForEdit.image || ''}
-                          alt="Preview"
-                          className="w-32 h-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = 'https://via.placeholder.com/150?text=No+Image';
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Status</label>
-                    <select
-                      value={editFormData.status}
-                      onChange={(e) => handleEditInputChange('status', e.target.value as 'Active' | 'Inactive')}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-                  <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                      type="button"
-                      onClick={handleCloseEditModal}
-                      className="px-6 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={updateLoading}
-                      className="px-6 py-2.5 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {updateLoading ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
-                </form>
-              )}
+            <p className="text-gray-600 dark:text-gray-300 mb-6">Are you sure you want to reset this user journey!</p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={performReset}
+                disabled={overviewUpdateLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirm
+              </button>
             </div>
           </div>
         </div>
@@ -845,4 +681,3 @@ function UserOrders() {
 }
 
 export default UserOrders;
-

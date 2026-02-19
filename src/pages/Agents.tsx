@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
+import { AgentDeleteConfirmModal } from '../components/AgentDeleteConfirmModal';
 
 interface Agent {
   id: number;
@@ -42,6 +43,9 @@ function Agents() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string[]>>({});
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [selectedAgentForDelete, setSelectedAgentForDelete] = useState<Agent | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
@@ -117,20 +121,6 @@ function Agents() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const getStatusBadge = (status: 'Active' | 'Inactive') => {
-    return (
-      <span
-        className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-          status === 'Active'
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
-        }`}
-      >
-        {status}
-      </span>
-    );
-  };
 
   const handleAddNew = () => {
     setAddFormData({
@@ -253,19 +243,48 @@ function Agents() {
     }
   };
 
-  const handleActivate = async (agentId: number) => {
-    setActionLoading(agentId);
+  const handleToggleStatus = async (agent: Agent) => {
+    const isActive = agent.status === 'Active';
+    setActionLoading(agent.id);
     try {
-      await api.activateUser(agentId);
-      setAgents(agents.map((agent) =>
-        agent.id === agentId ? { ...agent, status: 'Active' } : agent
-      ));
-      fetchAgents();
-    } catch (err: any) {
-      console.error('Failed to activate agent:', err);
-      alert(err instanceof Error ? err.message : 'Failed to activate agent');
+      if (isActive) {
+        await api.deactivateUser(agent.id);
+        toast.success('Agent deactivated.');
+      } else {
+        await api.activateUser(agent.id);
+        toast.success('Agent activated.');
+      }
+      await fetchAgents();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : (isActive ? 'Failed to deactivate agent' : 'Failed to activate agent'));
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleOpenDeleteModal = (agent: Agent) => {
+    setSelectedAgentForDelete(agent);
+    setDeleteError('');
+  };
+
+  const handleCloseDeleteModal = () => {
+    setSelectedAgentForDelete(null);
+    setDeleteError('');
+  };
+
+  const handleConfirmDeleteAgent = async () => {
+    if (!selectedAgentForDelete) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      await api.deleteUser(selectedAgentForDelete.id);
+      toast.success('Agent deleted.');
+      handleCloseDeleteModal();
+      await fetchAgents();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete agent');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -508,7 +527,19 @@ function Agents() {
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{agent.phone}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-mono">{agent.invitationCode}</td>
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white font-medium">{agent.totalUsers}</td>
-                          <td className="px-4 py-3 text-sm">{getStatusBadge(agent.status)}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <label className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+                              <input
+                                type="checkbox"
+                                checked={agent.status === 'Active'}
+                                disabled={actionLoading === agent.id}
+                                onChange={() => handleToggleStatus(agent)}
+                                className="peer sr-only"
+                              />
+                              <div className="h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-600 peer-checked:bg-blue-500 peer-disabled:opacity-50 transition-colors" />
+                              <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                            </label>
+                          </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{agent.createdBy}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{agent.createdAt}</td>
                           <td className="px-4 py-3 text-sm">
@@ -520,16 +551,18 @@ function Agents() {
                               >
                                 Edit
                               </button>
-                              {agent.status !== 'Active' && (
-                                <button
-                                  onClick={() => handleActivate(agent.id)}
-                                  disabled={actionLoading === agent.id}
-                                  className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Activate"
-                                >
-                                  {actionLoading === agent.id ? '...' : 'Activate'}
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDeleteModal(agent)}
+                                disabled={deleteLoading && selectedAgentForDelete?.id === agent.id}
+                                className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50"
+                                title="Delete agent"
+                                aria-label="Delete agent"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -976,6 +1009,16 @@ function Agents() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedAgentForDelete && (
+        <AgentDeleteConfirmModal
+          agent={selectedAgentForDelete}
+          loading={deleteLoading}
+          error={deleteError}
+          onConfirm={handleConfirmDeleteAgent}
+          onClose={handleCloseDeleteModal}
+        />
       )}
     </div>
   );

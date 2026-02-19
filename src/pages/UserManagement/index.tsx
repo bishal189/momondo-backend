@@ -10,6 +10,7 @@ import {
   LevelModal,
   DebitModal,
   ResetModal,
+  DeleteConfirmModal,
   EditUserModal,
   WalletModal,
   AccountDetailsModal,
@@ -52,6 +53,9 @@ export default function UserManagement() {
   const [selectedUserForReset, setSelectedUserForReset] = useState<User | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
+  const [selectedUserForDelete, setSelectedUserForDelete] = useState<User | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
@@ -171,6 +175,32 @@ export default function UserManagement() {
   );
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const handleOpenDeleteModal = (user: User) => {
+    setSelectedUserForDelete(user);
+    setDeleteError('');
+  };
+
+  const handleCloseDeleteModal = () => {
+    setSelectedUserForDelete(null);
+    setDeleteError('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedUserForDelete) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      await api.deleteUser(selectedUserForDelete.id);
+      toast.success('User deleted.');
+      handleCloseDeleteModal();
+      await fetchUsers();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete user');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const handleToggleStatus = async (user: User) => {
     const userId = user.id;
@@ -764,6 +794,18 @@ export default function UserManagement() {
                             <div ref={moreMenuUser?.id === user.id ? moreMenuButtonRef : undefined} onMouseEnter={(e) => openMoreMenu(e, user)} onMouseLeave={scheduleMoreMenuClose} className="relative inline-block">
                               <button type="button" className="flex-shrink-0 px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-600 font-medium whitespace-nowrap">More</button>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDeleteModal(user)}
+                              disabled={deleteLoading && selectedUserForDelete?.id === user.id}
+                              className="flex-shrink-0 p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50"
+                              title="Delete user"
+                              aria-label="Delete user"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -871,6 +913,10 @@ export default function UserManagement() {
 
       {selectedUserForReset && (
         <ResetModal user={selectedUserForReset} loading={resetLoading} error={resetError} onConfirm={handleConfirmReset} onClose={handleCloseResetModal} />
+      )}
+
+      {selectedUserForDelete && (
+        <DeleteConfirmModal user={selectedUserForDelete} loading={deleteLoading} error={deleteError} onConfirm={handleConfirmDelete} onClose={handleCloseDeleteModal} />
       )}
 
       <EditUserModal

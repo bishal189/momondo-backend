@@ -481,6 +481,17 @@ export const api = {
     return response.json();
   },
 
+  async deleteUser(userId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/users/${userId}/edit/`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to delete user');
+    }
+    return response.json();
+  },
+
   async getAgentUsers(): Promise<{
     agents: Array<{
       id: number;

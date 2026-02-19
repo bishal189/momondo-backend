@@ -269,22 +269,6 @@ function Agents() {
     }
   };
 
-  const handleDeactivate = async (agentId: number) => {
-    setActionLoading(agentId);
-    try {
-      await api.deactivateUser(agentId);
-      setAgents(agents.map((agent) =>
-        agent.id === agentId ? { ...agent, status: 'Inactive' } : agent
-      ));
-      fetchAgents();
-    } catch (err: any) {
-      console.error('Failed to deactivate agent:', err);
-      alert(err instanceof Error ? err.message : 'Failed to deactivate agent');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleAddInputChange = (field: keyof typeof addFormData, value: string) => {
     setAddFormData((prev) => ({
       ...prev,
@@ -536,16 +520,7 @@ function Agents() {
                               >
                                 Edit
                               </button>
-                              {agent.status === 'Active' ? (
-                                <button
-                                  onClick={() => handleDeactivate(agent.id)}
-                                  disabled={actionLoading === agent.id}
-                                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Deactivate"
-                                >
-                                  {actionLoading === agent.id ? '...' : 'Deactivate'}
-                                </button>
-                              ) : (
+                              {agent.status !== 'Active' && (
                                 <button
                                   onClick={() => handleActivate(agent.id)}
                                   disabled={actionLoading === agent.id}

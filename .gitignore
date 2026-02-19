@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist.zip
+dist.tar.gz
 *.local
 
 # Environment variables

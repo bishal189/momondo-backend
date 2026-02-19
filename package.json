@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:zip": "npm run build && cd dist && zip -r ../dist.zip . -x '*.map' && cd ..",
+    "build:cpanel": "tsc -b && BUILD_CPANEL=1 vite build && cd dist && zip -r ../dist.zip . -x '*.map' && cd ..",
+    "build:tar": "npm run build && cd dist && tar -czvf ../dist.tar.gz . && cd ..",
     "lint": "eslint .",
     "preview": "vite preview"
   },

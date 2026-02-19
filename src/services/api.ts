@@ -229,10 +229,29 @@ export const api = {
     userId: number,
     data: {
       username: string;
-      email: string;
+      email?: string;
       phone_number: string;
       new_password?: string;
       confirm_new_password?: string;
+      level_id?: number;
+      parent_id?: string;
+      balance?: number;
+      today_commission?: number;
+      freeze_amount?: number;
+      credibility?: string;
+      withdrawal_min_amount?: number;
+      withdrawal_max_amount?: number;
+      withdrawal_needed_to_complete_order?: number;
+      matching_range_min?: number;
+      matching_range_max?: number;
+      payment_password?: string;
+      confirm_payment_password?: string;
+      allow_rob_order?: boolean;
+      allow_withdrawal?: boolean;
+      number_of_draws?: number;
+      winning_amount?: number;
+      custom_winning_amount?: string;
+      [key: string]: unknown;
     }
   ): Promise<{ message?: string; user?: unknown }> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/users/${userId}/edit/`, {
@@ -355,38 +374,6 @@ export const api = {
     return response.json();
   },
 
-  async deactivateUser(userId: number): Promise<{
-    message: string;
-    user: {
-      id: number;
-      email: string;
-      username: string;
-      phone_number: string;
-      invitation_code: string;
-      role: string;
-      created_by: number;
-      created_by_email: string;
-      created_by_username: string;
-      date_joined: string;
-      last_login: string | null;
-      is_active: boolean;
-    };
-  }> {
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/users/${userId}/deactivate/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.detail || 'Failed to deactivate user');
-    }
-
-    return response.json();
-  },
-
   async agentActivateUser(userId: number): Promise<any> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/users/${userId}/activate/`, {
       method: 'POST',
@@ -398,22 +385,6 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.detail || 'Failed to activate user');
-    }
-
-    return response.json();
-  },
-
-  async agentDeactivateUser(userId: number): Promise<any> {
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/users/${userId}/deactivate/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.detail || 'Failed to deactivate user');
     }
 
     return response.json();

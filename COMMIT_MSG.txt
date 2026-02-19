@@ -1,0 +1,19 @@
+refactor(UserManagement): split into modules, add Edit/Account Details, fix range slider
+
+- Refactor UserManagement into types, utils, constants, and components
+  - Extract modals: CreateTrainingAccount, Level, Debit, Reset, EditUser, Wallet, AccountDetails
+  - Extract MoreActionsDropdown; delete monolithic UserManagement.tsx
+- Extend Edit User modal with full field set (username, level, parent ID, phone, balance,
+  commission, freeze amount, credibility, withdrawal limits, matching range, passwords,
+  allow rob order/withdrawal toggles, number of draws, winning amounts)
+- Style Edit modal: two-column layout, number spinners, dual range slider (0–100%),
+  toggle switches, scale with tick marks and 0/100 labels
+- Fix matching range: support min=0 and full 0–100% via number inputs; prevent left
+  thumb from moving right thumb (clamp + z-index by mouse position); fix React Hooks
+  order (useRef before early return)
+- Improve Wallet modal UI (stacked fields, pill selection, backdrop blur)
+- Add Account Details modal with static data and collapsible sections (User Account
+  Details, Wallet Information, Journey Information)
+- More dropdown: add Account Details at bottom; remove Account Change and Dealing
+  History; add Level button in table row for level assignment
+- api: extend updateUser payload for new edit fields

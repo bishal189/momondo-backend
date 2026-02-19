@@ -12,8 +12,6 @@ interface Level {
   benefits: string;
   status: 'Active' | 'Inactive';
   createdAt: string;
-  priceMinPercent?: number;
-  priceMaxPercent?: number;
   frozenCommissionRate?: number | null;
 }
 
@@ -36,8 +34,6 @@ const transformApiLevel = (apiLevel: ApiLevel): Level => {
       second: '2-digit',
       hour12: false,
     }).replace(/(\d+)\/(\d+)\/(\d+), (\d+):(\d+):(\d+)/, '$3-$1-$2 $4:$5:$6'),
-    priceMinPercent: apiLevel.price_min_percent,
-    priceMaxPercent: apiLevel.price_max_percent,
     frozenCommissionRate: apiLevel.frozen_commission_rate ?? null,
   };
 };
@@ -69,24 +65,10 @@ function Levels() {
     minimumOrders: 0,
     benefits: '',
     status: 'Active',
-    priceMinPercent: undefined,
-    priceMaxPercent: undefined,
     frozenCommissionRate: undefined,
   });
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
-  const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
-  const [selectedLevelForProducts, setSelectedLevelForProducts] = useState<Level | null>(null);
-  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
-  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [productsError, setProductsError] = useState('');
-  const [assignLoading, setAssignLoading] = useState(false);
-  const [isViewProductsModalOpen, setIsViewProductsModalOpen] = useState(false);
-  const [selectedLevelForView, setSelectedLevelForView] = useState<Level | null>(null);
-  const [assignedProducts, setAssignedProducts] = useState<any[]>([]);
-  const [viewProductsLoading, setViewProductsLoading] = useState(false);
-  const [viewProductsError, setViewProductsError] = useState('');
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -168,8 +150,6 @@ function Levels() {
         minimumOrders: transformedLevel.minimumOrders,
         benefits: transformedLevel.benefits,
         status: transformedLevel.status,
-        priceMinPercent: transformedLevel.priceMinPercent,
-        priceMaxPercent: transformedLevel.priceMaxPercent,
         frozenCommissionRate: transformedLevel.frozenCommissionRate,
       });
       setSelectedLevel(transformedLevel);
@@ -203,8 +183,6 @@ function Levels() {
         min_orders: formData.minimumOrders ?? selectedLevel.minimumOrders,
         benefits: formData.benefits || selectedLevel.benefits,
         status: ((formData.status || selectedLevel.status) === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
-        ...(formData.priceMinPercent != null && { price_min_percent: formData.priceMinPercent }),
-        ...(formData.priceMaxPercent != null && { price_max_percent: formData.priceMaxPercent }),
         frozen_commission_rate: formData.frozenCommissionRate ?? null,
       };
 
@@ -263,112 +241,6 @@ function Levels() {
     }
   };
 
-  const handleManageProducts = async (level: Level) => {
-    setSelectedLevelForProducts(level);
-    setSelectedProductIds([]);
-    setProductsError('');
-    setIsProductsModalOpen(true);
-    setProductsLoading(true);
-
-    try {
-      const allProducts: Awaited<ReturnType<typeof api.getProducts>>['products'] = [];
-      let offset = 0;
-      const pageSize = 50;
-      let hasMore = true;
-
-      while (hasMore) {
-        const response = await api.getProducts({
-          status: 'ACTIVE',
-          limit: pageSize,
-          offset,
-        });
-        allProducts.push(...response.products);
-        hasMore = response.has_more === true && response.products.length === pageSize;
-        offset = response.next_offset ?? offset + pageSize;
-      }
-
-      setAvailableProducts(allProducts);
-    } catch (err) {
-      setProductsError(err instanceof Error ? err.message : 'Failed to load products');
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  const handleCloseProductsModal = () => {
-    setIsProductsModalOpen(false);
-    setSelectedLevelForProducts(null);
-    setSelectedProductIds([]);
-    setProductsError('');
-  };
-
-  const handleToggleProduct = (productId: number) => {
-    setSelectedProductIds((prev) => {
-      if (prev.includes(productId)) {
-        return prev.filter((id) => id !== productId);
-      } else {
-        return [...prev, productId];
-      }
-    });
-  };
-
-  const handleAssignProducts = async () => {
-    if (!selectedLevelForProducts) return;
-
-    setAssignLoading(true);
-    setProductsError('');
-
-    try {
-      await api.assignProductsToLevel(selectedLevelForProducts.id, selectedProductIds);
-      handleCloseProductsModal();
-    } catch (err: any) {
-      if (err.errors) {
-        const errorMessages = Object.entries(err.errors)
-          .map(([key, value]) => {
-            if (Array.isArray(value)) {
-              return `${key}: ${value.join(', ')}`;
-            }
-            return `${key}: ${value}`;
-          })
-          .join('\n');
-        setProductsError(errorMessages);
-      } else {
-        setProductsError(err instanceof Error ? err.message : 'Failed to assign products');
-      }
-    } finally {
-      setAssignLoading(false);
-    }
-  };
-
-  const handleViewProducts = async (level: Level) => {
-    setSelectedLevelForView(level);
-    setIsViewProductsModalOpen(true);
-    setViewProductsLoading(true);
-    setViewProductsError('');
-    setAssignedProducts([]);
-
-    try {
-      const response = await api.getLevelProducts(level.id);
-      setAssignedProducts(response.products.map((product) => ({
-        ...product,
-        level: response.level.level_name,
-        level_number: response.level.level,
-      })));
-    } catch (err) {
-      setViewProductsError(err instanceof Error ? err.message : 'Failed to fetch products');
-      console.error('Error fetching level products:', err);
-    } finally {
-      setViewProductsLoading(false);
-    }
-  };
-
-  const handleCloseViewProductsModal = () => {
-    setIsViewProductsModalOpen(false);
-    setSelectedLevelForView(null);
-    setAssignedProducts([]);
-    setViewProductsError('');
-  };
-
   const handleAddNew = () => {
     setAddFormData({
       levelNumber: levels.length + 1,
@@ -378,8 +250,6 @@ function Levels() {
       minimumOrders: 0,
       benefits: '',
       status: 'Active',
-      priceMinPercent: undefined,
-      priceMaxPercent: undefined,
       frozenCommissionRate: undefined,
     });
     setIsAddModalOpen(true);
@@ -396,8 +266,6 @@ function Levels() {
       minimumOrders: 0,
       benefits: '',
       status: 'Active',
-      priceMinPercent: undefined,
-      priceMaxPercent: undefined,
       frozenCommissionRate: undefined,
     });
   };
@@ -415,8 +283,6 @@ function Levels() {
         min_orders: addFormData.minimumOrders || 0,
         benefits: addFormData.benefits || '',
         status: (addFormData.status === 'Active' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
-        ...(addFormData.priceMinPercent != null && { price_min_percent: addFormData.priceMinPercent }),
-        ...(addFormData.priceMaxPercent != null && { price_max_percent: addFormData.priceMaxPercent }),
         frozen_commission_rate: addFormData.frozenCommissionRate ?? null,
       };
 
@@ -526,8 +392,6 @@ function Levels() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level Name</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Minimum Balance</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Commission Rate</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Min %</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Max %</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Frozen %</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Number of Orders</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Benefits</th>
@@ -545,8 +409,6 @@ function Levels() {
                         <td className="px-4 py-3 text-sm">{getLevelBadge(level.levelName)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-medium">{level.requiredPoints.toLocaleString()}</td>
                         <td className="px-4 py-3 text-sm text-green-600 dark:text-green-400 font-medium">{level.commissionRate}%</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.priceMinPercent != null ? `${level.priceMinPercent}%` : '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.priceMaxPercent != null ? `${level.priceMaxPercent}%` : '—'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.frozenCommissionRate != null ? `${level.frozenCommissionRate}%` : '—'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{level.minimumOrders}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" title={level.benefits}>
@@ -564,25 +426,15 @@ function Levels() {
                               Edit
                             </button>
                             <button
-                              onClick={() => handleViewProducts(level)}
-                              className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                              title="View Products"
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={() => handleManageProducts(level)}
-                              className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-                              title="Manage Products"
-                            >
-                              Products
-                            </button>
-                            <button
+                              type="button"
                               onClick={() => handleDelete(level)}
-                              className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                              className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
                               title="Delete"
+                              aria-label="Delete"
                             >
-                              Delete
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
                             </button>
                           </div>
                         </td>
@@ -734,42 +586,6 @@ function Levels() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Min %
-                    </label>
-                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      <span title="price_min_percent">Min %</span>
-                      <span className="font-medium text-gray-700 dark:text-gray-300">{formData.priceMinPercent ?? 0}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={formData.priceMinPercent ?? 0}
-                      onChange={(e) => handleInputChange('priceMinPercent', parseInt(e.target.value) || 0)}
-                      className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Max %
-                    </label>
-                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      <span title="price_max_percent">Max %</span>
-                      <span className="font-medium text-gray-700 dark:text-gray-300">{formData.priceMaxPercent ?? 0}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={formData.priceMaxPercent ?? 0}
-                      onChange={(e) => handleInputChange('priceMaxPercent', parseInt(e.target.value) || 0)}
-                      className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-500"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Frozen %
@@ -1020,38 +836,6 @@ function Levels() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Min %
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      placeholder="30"
-                      title="price_min_percent"
-                      value={addFormData.priceMinPercent ?? ''}
-                      onChange={(e) => handleAddInputChange('priceMinPercent', e.target.value === '' ? undefined as any : parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Max %
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      placeholder="70"
-                      title="price_max_percent"
-                      value={addFormData.priceMaxPercent ?? ''}
-                      onChange={(e) => handleAddInputChange('priceMaxPercent', e.target.value === '' ? undefined as any : parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Frozen %
                     </label>
                     <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
@@ -1137,213 +921,6 @@ function Levels() {
         </div>
       )}
 
-      {isProductsModalOpen && selectedLevelForProducts && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Manage Products - {selectedLevelForProducts.levelName}
-                </h2>
-                <button
-                  onClick={handleCloseProductsModal}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {productsError && (
-                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                  {productsError}
-                </div>
-              )}
-
-              {productsLoading ? (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  Loading products...
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Select products to assign to this level. Users with this level will have access to the selected products.
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      {selectedProductIds.length} product(s) selected
-                    </p>
-                  </div>
-
-                  <div className="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                    {availableProducts.length > 0 ? (
-                      <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {availableProducts.map((product) => (
-                          <label
-                            key={product.id}
-                            className="flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedProductIds.includes(product.id)}
-                              onChange={() => handleToggleProduct(product.id)}
-                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <div className="ml-3 flex-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {product.title}
-                                </span>
-                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                  ${product.price}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                                {product.description}
-                              </p>
-                              {product.image_url && (
-                                <img
-                                  src={product.image_url}
-                                  alt={product.title}
-                                  className="mt-2 w-16 h-16 object-cover rounded"
-                                />
-                              )}
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                        No products available
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                      type="button"
-                      onClick={handleCloseProductsModal}
-                      className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAssignProducts}
-                      disabled={assignLoading}
-                      className="px-4 py-2 text-sm bg-gray-900 dark:bg-gray-900 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {assignLoading ? 'Assigning...' : 'Assign Products'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isViewProductsModalOpen && selectedLevelForView && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Products Assigned to {selectedLevelForView.levelName}
-                </h2>
-                <button
-                  onClick={handleCloseViewProductsModal}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {viewProductsError && (
-                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                  {viewProductsError}
-                </div>
-              )}
-
-              {viewProductsLoading ? (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  Loading products...
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Products assigned to this level. Users with this level will have access to these products.
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      {assignedProducts.length} product(s) assigned
-                    </p>
-                  </div>
-
-                  <div className="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                    {assignedProducts.length > 0 ? (
-                      <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {assignedProducts.map((product) => (
-                          <div
-                            key={product.id}
-                            className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            <div className="flex items-center gap-4">
-                              {product.image_url ? (
-                                <img
-                                  src={product.image_url}
-                                  alt={product.title}
-                                  className="w-16 h-16 object-cover rounded"
-                                />
-                              ) : (
-                                <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
-                                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                </div>
-                              )}
-                              <div className="ml-3 flex-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {product.title}
-                                  </span>
-                                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                    ${product.price}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                                  {product.description}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                        No products available
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                      type="button"
-                      onClick={handleCloseViewProductsModal}
-                      className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

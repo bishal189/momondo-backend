@@ -12,7 +12,6 @@ import Products from './pages/Products';
 import Agents from './pages/Agents';
 import UserManagement from './pages/UserManagement';
 import Transactions from './pages/Transactions';
-import SetupOrders from './pages/SetupOrders';
 import UserOrders from './pages/UserOrders';
 
 function App() {
@@ -32,7 +31,6 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
-          <Route path="users/:userId/setup-orders" element={<SetupOrders />} />
           <Route path="login-activities" element={<LoginActivities />} />
           <Route path="levels" element={<Levels />} />
           <Route path="products" element={<Products />} />

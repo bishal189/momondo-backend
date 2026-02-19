@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: number;
@@ -94,7 +93,6 @@ const mockUsers: User[] = [
 ];
 
 function Users() {
-  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -182,10 +180,6 @@ function Users() {
     });
 
     handleCloseDebitModal();
-  };
-
-  const handleSetupOrders = (userId: number) => {
-    navigate(`/dashboard/users/${userId}/setup-orders`);
   };
 
   const handleResetQty = (userId: number) => {
@@ -447,13 +441,6 @@ function Users() {
                             title="Add Debit"
                           >
                             Debit
-                          </button>
-                          <button
-                            onClick={() => handleSetupOrders(user.id)}
-                            className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                            title="Setup Orders"
-                          >
-                            Orders
                           </button>
                           <button
                             onClick={() => handleResetQty(user.id)}

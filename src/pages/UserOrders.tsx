@@ -95,6 +95,8 @@ function UserOrders() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
 
   const [orderOverview, setOrderOverview] = useState<OrderOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
@@ -126,11 +128,11 @@ function UserOrders() {
 
   useEffect(() => {
     if (userId) fetchProducts();
-  }, [userId, searchTerm, currentPage]);
+  }, [userId, searchTerm, priceMin, priceMax, currentPage]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, priceMin, priceMax]);
 
   useEffect(() => {
     if (!userId) return;
@@ -177,12 +179,14 @@ function UserOrders() {
       setError('');
     }
     try {
-      const params: { status?: 'ACTIVE'; search?: string; limit: number; offset: number; user_id?: number } = {
+      const params: { status?: 'ACTIVE'; search?: string; min_price?: string; max_price?: string; limit: number; offset: number; user_id?: number } = {
         status: 'ACTIVE',
         limit: ITEMS_PER_PAGE,
         offset: (currentPage - 1) * ITEMS_PER_PAGE,
       };
       if (searchTerm.trim()) params.search = searchTerm.trim();
+      if (priceMin.trim() !== '') params.min_price = priceMin.trim();
+      if (priceMax.trim() !== '') params.max_price = priceMax.trim();
       if (userId) params.user_id = parseInt(userId, 10);
 
       const response = await api.getProducts(params);
@@ -563,7 +567,7 @@ function UserOrders() {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
             <div className="flex items-center gap-4">
               <div className="flex-1 relative">
                 <input
@@ -579,6 +583,46 @@ function UserOrders() {
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 {totalCount} product{totalCount !== 1 ? 's' : ''} found
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200 dark:border-gray-600">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by price:</span>
+              <div className="flex items-center gap-2">
+                <label htmlFor="user-orders-price-min" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  Min
+                </label>
+                <input
+                  id="user-orders-price-min"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={priceMin}
+                  onChange={(e) => {
+                    setPriceMin(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <span className="text-gray-400 dark:text-gray-500">–</span>
+              <div className="flex items-center gap-2">
+                <label htmlFor="user-orders-price-max" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  Max
+                </label>
+                <input
+                  id="user-orders-price-max"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="999"
+                  value={priceMax}
+                  onChange={(e) => {
+                    setPriceMax(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
             </div>
           </div>

@@ -779,28 +779,6 @@ export const api = {
     return response.json();
   },
 
-  async assignProductsToLevel(levelId: number, productIds: number[]): Promise<any> {
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/assign-to-level/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        level_id: levelId,
-        product_ids: productIds,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const error = new Error(errorData.message || errorData.detail || 'Failed to assign products to level');
-      (error as any).errors = errorData;
-      throw error;
-    }
-
-    return response.json();
-  },
-
   async getProducts(params?: {
     status?: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
     search?: string;
@@ -1016,42 +994,6 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.detail || 'Failed to remove product from user');
-    }
-
-    return response.json();
-  },
-
-  async getLevelProducts(levelId: number): Promise<{
-    level: {
-      id: number;
-      level: number;
-      level_name: string;
-      required_points: number;
-      commission_rate: string;
-      min_orders: number;
-      benefits: string;
-      status: string;
-      created_at: string;
-    };
-    products: Array<{
-      id: number;
-      image: string | null;
-      image_url: string | null;
-      title: string;
-      description: string;
-      price: string;
-      status: 'ACTIVE' | 'INACTIVE';
-      created_at: string;
-    }>;
-    count: number;
-  }> {
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/product/level/${levelId}/`, {
-      method: 'GET',
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.detail || 'Failed to fetch level products');
     }
 
     return response.json();

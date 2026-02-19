@@ -75,6 +75,18 @@ export interface TransactionsResponse {
   user_role: string;
 }
 
+export interface PrimaryWalletPayload {
+  wallet_name: string;
+  wallet_address: string;
+  phone_number: string;
+  currency: string;
+  network_type: string;
+}
+
+export interface PrimaryWalletResponse {
+  wallet: PrimaryWalletPayload | null;
+}
+
 export interface Level {
   id: number;
   level: number;
@@ -1034,6 +1046,37 @@ export const api = {
       throw error;
     }
 
+    return response.json();
+  },
+
+  async getPrimaryWallet(userId: number): Promise<PrimaryWalletResponse> {
+    const response = await fetchWithAuth(
+      `${API_BASE_URL}/api/transaction/admin/user/${userId}/wallets/primary/`,
+      { method: 'GET' }
+    );
+    if (response.status === 404 || response.status === 204) {
+      return { wallet: null };
+    }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch primary wallet');
+    }
+    return response.json();
+  },
+
+  async updatePrimaryWallet(userId: number, payload: PrimaryWalletPayload): Promise<PrimaryWalletResponse> {
+    const response = await fetchWithAuth(
+      `${API_BASE_URL}/api/transaction/admin/user/${userId}/wallets/primary/`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to update primary wallet');
+    }
     return response.json();
   },
 

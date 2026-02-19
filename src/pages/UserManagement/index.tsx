@@ -90,6 +90,9 @@ export default function UserManagement() {
   const [walletFormData, setWalletFormData] = useState<WalletFormData>({
     walletName: '', walletAddress: '', phoneNumber: '', currency: 'USDT', networkType: 'TRC 20',
   });
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletSubmitLoading, setWalletSubmitLoading] = useState(false);
+  const [walletError, setWalletError] = useState('');
 
   const [moreMenuUser, setMoreMenuUser] = useState<User | null>(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState<{ left: number; top: number } | null>(null);
@@ -298,23 +301,77 @@ export default function UserManagement() {
 
   const handleOpenWalletModal = (user: User) => {
     setSelectedUserForWallet(user);
-    setWalletFormData({ walletName: '', walletAddress: '', phoneNumber: user.phone_number ?? '', currency: 'USDT', networkType: 'TRC 20' });
+    setWalletError('');
+    setWalletFormData({
+      walletName: '',
+      walletAddress: '',
+      phoneNumber: user.phone_number ?? '',
+      currency: 'USDT',
+      networkType: 'TRC 20',
+    });
     setMoreMenuUser(null);
   };
 
   const handleCloseWalletModal = () => {
     setSelectedUserForWallet(null);
+    setWalletError('');
   };
+
+  useEffect(() => {
+    if (!selectedUserForWallet) return;
+    let cancelled = false;
+    setWalletLoading(true);
+    setWalletError('');
+    api
+      .getPrimaryWallet(selectedUserForWallet.id)
+      .then((res) => {
+        if (cancelled) return;
+        const w = res.wallet;
+        setWalletFormData({
+          walletName: w?.wallet_name ?? '',
+          walletAddress: w?.wallet_address ?? '',
+          phoneNumber: w?.phone_number ?? selectedUserForWallet.phone_number ?? '',
+          currency: w?.currency ?? 'USDT',
+          networkType: w?.network_type ?? 'TRC 20',
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) setWalletError(err instanceof Error ? err.message : 'Failed to load wallet');
+      })
+      .finally(() => {
+        if (!cancelled) setWalletLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedUserForWallet]);
 
   const handleWalletFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setWalletFormData((prev) => ({ ...prev, [name]: value }));
+    if (walletError) setWalletError('');
   };
 
-  const handleWalletSubmit = (e: React.FormEvent) => {
+  const handleWalletSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Wallet information saved.');
-    handleCloseWalletModal();
+    if (!selectedUserForWallet) return;
+    setWalletError('');
+    setWalletSubmitLoading(true);
+    try {
+      await api.updatePrimaryWallet(selectedUserForWallet.id, {
+        wallet_name: walletFormData.walletName.trim(),
+        wallet_address: walletFormData.walletAddress.trim(),
+        phone_number: walletFormData.phoneNumber.trim(),
+        currency: walletFormData.currency,
+        network_type: walletFormData.networkType,
+      });
+      toast.success('Wallet information saved.');
+      handleCloseWalletModal();
+    } catch (err) {
+      setWalletError(err instanceof Error ? err.message : 'Failed to save wallet');
+    } finally {
+      setWalletSubmitLoading(false);
+    }
   };
 
   const handleOpenEditUserModal = async (user: User) => {
@@ -676,7 +733,16 @@ export default function UserManagement() {
       )}
 
       {selectedUserForWallet && (
-        <WalletModal user={selectedUserForWallet} formData={walletFormData} onClose={handleCloseWalletModal} onChange={handleWalletFormChange} onSubmit={handleWalletSubmit} />
+        <WalletModal
+          user={selectedUserForWallet}
+          formData={walletFormData}
+          loading={walletLoading}
+          submitLoading={walletSubmitLoading}
+          error={walletError}
+          onClose={handleCloseWalletModal}
+          onChange={handleWalletFormChange}
+          onSubmit={handleWalletSubmit}
+        />
       )}
 
       {isLevelModalOpen && selectedUser && (

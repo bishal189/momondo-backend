@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api, type Level } from '../../services/api';
+import { api, type Level, type AccountDetailsResponse, type UserEditUser } from '../../services/api';
 import type { User, CreateTrainingFormData, DebitFormData, EditUserFormData, WalletFormData } from './types';
-import { formatDate, getStatusBadge, validateEmail, validatePhoneNumber, flattenUsersResponse } from './utils';
+import { formatDate, validateEmail, validatePhoneNumber, flattenUsersResponse } from './utils';
 import { ITEMS_PER_PAGE } from './constants';
 import {
   CreateTrainingAccountModal,
@@ -87,6 +87,9 @@ export default function UserManagement() {
 
   const [selectedUserForWallet, setSelectedUserForWallet] = useState<User | null>(null);
   const [selectedUserForAccountDetails, setSelectedUserForAccountDetails] = useState<User | null>(null);
+  const [accountDetails, setAccountDetails] = useState<AccountDetailsResponse | null>(null);
+  const [accountDetailsLoading, setAccountDetailsLoading] = useState(false);
+  const [accountDetailsError, setAccountDetailsError] = useState('');
   const [walletFormData, setWalletFormData] = useState<WalletFormData>({
     walletName: '', walletAddress: '', phoneNumber: '', currency: 'USDT', networkType: 'TRC 20',
   });
@@ -169,14 +172,23 @@ export default function UserManagement() {
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const handleActivate = async (userId: number) => {
+  const handleToggleStatus = async (user: User) => {
+    const userId = user.id;
+    const isActive = user.is_active !== false;
     setActionLoading(userId);
     try {
-      if (isAdmin) await api.activateUser(userId);
-      else await api.agentActivateUser(userId);
+      if (isActive) {
+        if (isAdmin) await api.deactivateUser(userId);
+        else await api.agentDeactivateUser(userId);
+        toast.success('User deactivated.');
+      } else {
+        if (isAdmin) await api.activateUser(userId);
+        else await api.agentActivateUser(userId);
+        toast.success('User activated.');
+      }
       await fetchUsers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to activate user');
+      toast.error(err instanceof Error ? err.message : (isActive ? 'Failed to deactivate user' : 'Failed to activate user'));
     } finally {
       setActionLoading(null);
     }
@@ -318,6 +330,31 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
+    if (!selectedUserForAccountDetails) {
+      setAccountDetails(null);
+      setAccountDetailsError('');
+      return;
+    }
+    let cancelled = false;
+    setAccountDetailsLoading(true);
+    setAccountDetailsError('');
+    api
+      .getAccountDetails(selectedUserForAccountDetails.id)
+      .then((data) => {
+        if (!cancelled) setAccountDetails(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setAccountDetailsError(err instanceof Error ? err.message : 'Failed to load account details');
+      })
+      .finally(() => {
+        if (!cancelled) setAccountDetailsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedUserForAccountDetails]);
+
+  useEffect(() => {
     if (!selectedUserForWallet) return;
     let cancelled = false;
     setWalletLoading(true);
@@ -374,6 +411,33 @@ export default function UserManagement() {
     }
   };
 
+  const mapUserEditToFormData = (data: UserEditUser, fallback: User): EditUserFormData => ({
+    ...getDefaultEditFormData(),
+    username: data.username ?? fallback.username ?? '',
+    email: data.email ?? fallback.email ?? '',
+    phone_number: data.phone_number ?? fallback.phone_number ?? '',
+    level_id: data.level?.id != null ? String(data.level.id) : (fallback.level?.id?.toString() ?? ''),
+    parent_id: data.parent_id != null ? String(data.parent_id) : (fallback.created_by?.toString() ?? ''),
+    balance: data.balance ?? (fallback.balance ?? ''),
+    today_commission: data.today_commission != null ? String(data.today_commission) : '',
+    freeze_amount: data.freeze_amount ?? (fallback.balance_frozen_amount ?? ''),
+    credibility: data.credibility != null ? String(data.credibility) : '',
+    withdrawal_min_amount: data.withdrawal_min_amount != null ? String(data.withdrawal_min_amount) : '',
+    withdrawal_max_amount: data.withdrawal_max_amount != null ? String(data.withdrawal_max_amount) : '',
+    withdrawal_needed_to_complete_order: data.withdrawal_needed_to_complete_order != null ? String(data.withdrawal_needed_to_complete_order) : '',
+    matching_range_min: data.matching_min_percent != null ? String(parseFloat(data.matching_min_percent)) : '30',
+    matching_range_max: data.matching_max_percent != null ? String(parseFloat(data.matching_max_percent)) : '70',
+    password: '',
+    confirm_password: '',
+    payment_password: '',
+    confirm_payment_password: '',
+    allow_rob_order: data.allow_rob_order ?? false,
+    allow_withdrawal: data.allow_withdrawal ?? true,
+    number_of_draws: data.number_of_draws != null ? String(data.number_of_draws) : '',
+    winning_amount: data.winning_amount != null ? String(data.winning_amount) : '',
+    custom_winning_amount: data.custom_winning_amount ?? '',
+  });
+
   const handleOpenEditUserModal = async (user: User) => {
     setSelectedUserForEdit(user);
     setEditUserError('');
@@ -390,10 +454,14 @@ export default function UserManagement() {
       freeze_amount: user.balance_frozen_amount ?? '',
     });
     try {
-      const res = await api.getLevels({ status: 'ACTIVE' });
-      setEditModalLevels(res.results);
-    } catch {
-      setEditModalLevels([]);
+      const [editRes, levelsRes] = await Promise.all([
+        api.getUserForEdit(user.id),
+        api.getLevels({ status: 'ACTIVE' }).catch(() => ({ results: [] as Level[] })),
+      ]);
+      setEditModalLevels(levelsRes.results ?? []);
+      setEditFormData(mapUserEditToFormData(editRes, user));
+    } catch (err) {
+      setEditUserError(err instanceof Error ? err.message : 'Failed to load user for edit');
     }
   };
 
@@ -612,7 +680,7 @@ export default function UserManagement() {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      {['ID', 'Account Type', 'Username', 'Email', 'Phone Number', 'Invitation Code', 'Original Account', 'Balance', 'Role', 'Level', 'Created By', 'Status', 'Frozen', 'Frozen Amount', 'Date Joined', 'Last Login', 'Actions'].map((h) => (
+                      {['ID', 'Account Type', 'Username', 'Email', 'Phone Number', 'Invitation Code', 'Original Account', 'Balance', 'Role', 'Level', 'Created By', 'Status', 'Frozen', 'Frozen Amount', 'Rob Single', 'Allow Withdrawal', 'Date Joined', 'Last Login', 'Actions'].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -646,7 +714,19 @@ export default function UserManagement() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{user.level?.level_name ?? '-'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{user.created_by_username ?? '-'}</td>
-                        <td className="px-4 py-3 text-sm">{getStatusBadge(user.is_active !== false ? 'Active' : 'Inactive')}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <label className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+                            <input
+                              type="checkbox"
+                              checked={user.is_active !== false}
+                              disabled={actionLoading === user.id}
+                              onChange={() => handleToggleStatus(user)}
+                              className="peer sr-only"
+                            />
+                            <div className="h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-600 peer-checked:bg-blue-500 peer-disabled:opacity-50 transition-colors" />
+                            <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                          </label>
+                        </td>
                         <td className="px-4 py-3 text-sm">
                           {user.balance_frozen ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-white bg-red-600 dark:bg-red-700">Frozen</span>
@@ -656,6 +736,20 @@ export default function UserManagement() {
                           {user.balance_frozen_amount != null && user.balance_frozen_amount !== '' ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-red-800 dark:text-red-200 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800">
                               ${Number(user.balance_frozen_amount).toFixed(2)}
+                            </span>
+                          ) : <span className="text-gray-400 dark:text-gray-500">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {user.allow_rob_order != null ? (
+                            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${user.allow_rob_order ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                              {user.allow_rob_order ? 'Allowed' : 'Not allowed'}
+                            </span>
+                          ) : <span className="text-gray-400 dark:text-gray-500">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {user.allow_withdrawal != null ? (
+                            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${user.allow_withdrawal ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                              {user.allow_withdrawal ? 'Allowed' : 'Not allowed'}
                             </span>
                           ) : <span className="text-gray-400 dark:text-gray-500">—</span>}
                         </td>
@@ -670,17 +764,12 @@ export default function UserManagement() {
                             <div ref={moreMenuUser?.id === user.id ? moreMenuButtonRef : undefined} onMouseEnter={(e) => openMoreMenu(e, user)} onMouseLeave={scheduleMoreMenuClose} className="relative inline-block">
                               <button type="button" className="flex-shrink-0 px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-600 font-medium whitespace-nowrap">More</button>
                             </div>
-                            {user.is_active === false && (
-                              <button onClick={() => handleActivate(user.id)} disabled={actionLoading === user.id} className="flex-shrink-0 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
-                                {actionLoading === user.id ? '...' : 'Activate'}
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan={17} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No users found</td>
+                        <td colSpan={19} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No users found</td>
                       </tr>
                     )}
                   </tbody>
@@ -729,7 +818,17 @@ export default function UserManagement() {
       />
 
       {selectedUserForAccountDetails && (
-        <AccountDetailsModal user={selectedUserForAccountDetails} onClose={() => setSelectedUserForAccountDetails(null)} />
+        <AccountDetailsModal
+          user={selectedUserForAccountDetails}
+          details={accountDetails}
+          loading={accountDetailsLoading}
+          error={accountDetailsError}
+          onClose={() => {
+            setSelectedUserForAccountDetails(null);
+            setAccountDetails(null);
+            setAccountDetailsError('');
+          }}
+        />
       )}
 
       {selectedUserForWallet && (

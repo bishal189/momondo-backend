@@ -32,6 +32,8 @@ export interface User {
   balance?: string | null;
   balance_frozen?: boolean;
   balance_frozen_amount?: string | null;
+  allow_rob_order?: boolean;
+  allow_withdrawal?: boolean;
   training_accounts?: User[];
 }
 

@@ -53,7 +53,6 @@ export function EditUserModal({
 }: EditUserModalProps) {
   const [rangeActiveSide, setRangeActiveSide] = useState<'min' | 'max' | null>(null);
   const rangeTrackRef = useRef<HTMLDivElement>(null);
-
   if (!isOpen) return null;
 
   const parseRange = (s: string, fallback: number) => {

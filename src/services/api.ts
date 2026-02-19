@@ -36,6 +36,34 @@ export interface UserProfile {
   is_active: boolean;
 }
 
+export interface UserEditUser {
+  id: number;
+  username: string;
+  level?: { id: number; level_name: string } | null;
+  parent_id?: number | null;
+  phone_number: string;
+  email?: string | null;
+  balance?: string;
+  today_commission?: number | null;
+  freeze_amount?: string;
+  credibility?: number | null;
+  withdrawal_min_amount?: number | null;
+  withdrawal_max_amount?: number | null;
+  withdrawal_needed_to_complete_order?: number | null;
+  matching_min_percent?: string | null;
+  matching_max_percent?: string | null;
+  matching_range?: string | null;
+  allow_rob_order?: boolean;
+  allow_withdrawal?: boolean;
+  number_of_draws?: number | null;
+  winning_amount?: number | null;
+  custom_winning_amount?: string | null;
+}
+
+export interface UserEditResponse {
+  user: UserEditUser;
+}
+
 export interface LoginActivity {
   id: number;
   user: number;
@@ -87,6 +115,34 @@ export interface PrimaryWalletResponse {
   wallet: PrimaryWalletPayload | null;
 }
 
+export interface AccountDetailsResponse {
+  id: number;
+  username: string;
+  invitation_code: string;
+  phone_number: string;
+  superior_id: number;
+  superior_username: string;
+  registration_date: string;
+  last_login: string;
+  balance: number;
+  commission: number;
+  froze_amount: number;
+  membership: string;
+  credibility: string;
+  account_status: string;
+  rob_single: string;
+  allow_withdrawal: string;
+  wallet_name: string | null;
+  wallet_phone: string | null;
+  wallet_address: string | null;
+  network_type: string | null;
+  currency: string | null;
+  current_stage: number;
+  available_for_daily_order: number;
+  progress: string;
+  product_range: string | null;
+}
+
 export interface Level {
   id: number;
   level: number;
@@ -134,6 +190,8 @@ export interface AgentUserListItem {
   balance?: string | null;
   balance_frozen?: boolean;
   balance_frozen_amount?: string | null;
+  allow_rob_order?: boolean;
+  allow_withdrawal?: boolean;
   date_joined: string;
   last_login?: string | null;
   is_active?: boolean;
@@ -220,11 +278,7 @@ export const api = {
     return response.json();
   },
 
-  async getUserForEdit(userId: number): Promise<{
-    username: string;
-    email: string;
-    phone_number: string;
-  }> {
+  async getUserForEdit(userId: number): Promise<UserEditUser> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/users/${userId}/edit/`, {
       method: 'GET',
     });
@@ -234,7 +288,8 @@ export const api = {
       throw new Error(errorData.message || errorData.detail || 'Failed to fetch user for edit');
     }
 
-    return response.json();
+    const data: UserEditResponse = await response.json();
+    return data.user;
   },
 
   async updateUser(
@@ -399,6 +454,30 @@ export const api = {
       throw new Error(errorData.message || errorData.detail || 'Failed to activate user');
     }
 
+    return response.json();
+  },
+
+  async deactivateUser(userId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/admin/users/${userId}/deactivate/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to deactivate user');
+    }
+    return response.json();
+  },
+
+  async agentDeactivateUser(userId: number): Promise<any> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/auth/agent/users/${userId}/deactivate/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to deactivate user');
+    }
     return response.json();
   },
 
@@ -1095,6 +1174,18 @@ export const api = {
       throw error;
     }
 
+    return response.json();
+  },
+
+  async getAccountDetails(userId: number): Promise<AccountDetailsResponse> {
+    const response = await fetchWithAuth(
+      `${API_BASE_URL}/api/product/admin/user/${userId}/account-details/`,
+      { method: 'GET' }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch account details');
+    }
     return response.json();
   },
 

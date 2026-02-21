@@ -513,6 +513,9 @@ function UserOrders() {
                       <div className="w-px h-3 bg-gray-300 dark:bg-gray-500" />
                     </div>
                   ))}
+                  <div className="absolute left-0 bottom-0 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Today Orders: {todayOrders}
+                  </div>
                   <div
                     className="absolute flex flex-col items-center gap-0.5 -translate-x-1/2"
                     style={{
@@ -530,7 +533,6 @@ function UserOrders() {
                       <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                     </svg>
                     <span className="text-xs font-semibold text-red-600 dark:text-red-400">({todayOrders})</span>
-                    <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Today Orders: {todayOrders}</span>
                   </div>
                   {sortedAssigned.map((p) => {
                     const posPct = dailyAvailable > 0 ? (p.position / dailyAvailable) * 100 : 0;

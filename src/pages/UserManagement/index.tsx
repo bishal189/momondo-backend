@@ -727,7 +727,27 @@ export default function UserManagement() {
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{user.username}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{user.email}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{user.phone_number}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 font-mono">{user.invitation_code}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                          <span className="inline-flex items-center gap-1.5 font-mono">
+                            {user.invitation_code}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(user.invitation_code).then(
+                                  () => toast.success('Invitation code copied'),
+                                  () => toast.error('Failed to copy')
+                                );
+                              }}
+                              className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                              title="Copy invitation code"
+                              aria-label="Copy invitation code"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                            </button>
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                           {user.is_training_account && user.original_account_username ? (
                             <div className="flex flex-col">

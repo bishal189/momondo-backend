@@ -30,8 +30,10 @@ export function validateEmail(email: string): boolean {
 }
 
 export function validatePhoneNumber(phone: string): boolean {
+  const trimmed = phone.trim();
+  if (!trimmed) return false;
   const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-  return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+  return phoneRegex.test(trimmed);
 }
 
 export function flattenUsersResponse(usersList: User[]): User[] {

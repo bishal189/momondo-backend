@@ -158,8 +158,10 @@ function Agents() {
   };
 
   const validatePhoneNumber = (phone: string): boolean => {
+    const trimmed = phone.trim();
+    if (!trimmed) return false;
     const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+    return phoneRegex.test(trimmed);
   };
 
   const handleSaveNew = async () => {
@@ -185,7 +187,7 @@ function Agents() {
     if (!addFormData.phone_number || addFormData.phone_number.trim() === '') {
       errors.phone_number = ['Phone number is required'];
     } else if (!validatePhoneNumber(addFormData.phone_number.trim())) {
-      errors.phone_number = ['Please enter a valid phone number (at least 10 digits)'];
+      errors.phone_number = ['Please enter a valid phone number'];
     }
 
     if (!addFormData.login_password || addFormData.login_password === '') {
@@ -379,7 +381,7 @@ function Agents() {
     if (!editFormData.phone_number || editFormData.phone_number.trim() === '') {
       errors.phone_number = ['Phone number is required'];
     } else if (!validatePhoneNumber(editFormData.phone_number.trim())) {
-      errors.phone_number = ['Please enter a valid phone number (at least 10 digits)'];
+      errors.phone_number = ['Please enter a valid phone number'];
     }
 
     if (editFormData.login_password && editFormData.login_password.length > 0) {

@@ -328,9 +328,12 @@ function UserOrders() {
   };
 
   const displayUsername = orderOverview?.username ?? 'User';
-  const dailyAvailable = orderOverview?.daily_available_orders ?? 30;
+  const currentOrdersMade = orderOverview?.current_orders_made ?? 0;
+  const dailyAvailable = orderOverview?.daily_available_orders ?? 10;
+  const maxOrdersByLevel = orderOverview?.max_orders_by_level ?? 0;
   const todayOrders = orderOverview?.orders_received_today ?? 0;
   const assignedProducts = orderOverview?.assigned_products ?? [];
+  const journeyCompleted = maxOrdersByLevel > 0 && currentOrdersMade >= maxOrdersByLevel;
   const assignedFiltered = useMemo(
     () => assignedProducts.filter((p) => !pendingRemoves.includes(p.id)),
     [assignedProducts, pendingRemoves]
@@ -396,7 +399,7 @@ function UserOrders() {
                   <input
                     type="number"
                     readOnly
-                    value={orderOverview?.current_orders_made ?? 0}
+                    value={currentOrdersMade}
                     className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -405,7 +408,7 @@ function UserOrders() {
                   <input
                     type="number"
                     readOnly
-                    value={orderOverview?.orders_received_today ?? 0}
+                    value={todayOrders}
                     className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -427,7 +430,8 @@ function UserOrders() {
                       max={orderOverview?.max_orders_by_level ?? undefined}
                       value={startContinuousAfter}
                       onChange={(e) => clampStartInput(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={journeyCompleted}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                     />
                     {nextPositions.length > 0 && (
                       <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -469,6 +473,7 @@ function UserOrders() {
                             e.stopPropagation();
                             handleRemoveFromList(p);
                           }}
+                          disabled={journeyCompleted}
                           className="p-0.5 rounded hover:bg-green-200 dark:hover:bg-green-800 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                           aria-label="Remove"
                         >
@@ -482,11 +487,11 @@ function UserOrders() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
                 <button
                   type="button"
                   onClick={handleSaveOk}
-                  disabled={overviewUpdateLoading}
+                  disabled={overviewUpdateLoading || journeyCompleted}
                   className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {overviewUpdateLoading ? 'Saving...' : 'OK'}
@@ -499,6 +504,11 @@ function UserOrders() {
                 >
                   Reset continuous orders
                 </button>
+                {journeyCompleted && (
+                  <span className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+                    Journey completed — add and continuous order editing disabled.
+                  </span>
+                )}
               </div>
 
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -514,16 +524,16 @@ function UserOrders() {
                     </div>
                   ))}
                   <div className="absolute left-0 bottom-0 text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Today Orders: {todayOrders}
+                    Orders completed: {currentOrdersMade}
                   </div>
                   <div
                     className="absolute flex flex-col items-center gap-0.5 -translate-x-1/2"
                     style={{
                       left:
                         dailyAvailable > 0
-                          ? todayOrders >= dailyAvailable
+                          ? currentOrdersMade >= dailyAvailable
                             ? '100%'
-                            : `${Math.min(98, Math.max(2, (todayOrders / dailyAvailable) * 100))}%`
+                            : `${Math.min(98, Math.max(2, (currentOrdersMade / dailyAvailable) * 100))}%`
                           : '10%',
                       top: '52px',
                     }}
@@ -532,7 +542,7 @@ function UserOrders() {
                     <svg className="w-6 h-6 text-red-500 dark:text-red-400 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                     </svg>
-                    <span className="text-xs font-semibold text-red-600 dark:text-red-400">({todayOrders})</span>
+                    <span className="text-xs font-semibold text-red-600 dark:text-red-400">({currentOrdersMade})</span>
                   </div>
                   {sortedAssigned.map((p) => {
                     const posPct = dailyAvailable > 0 ? (p.position / dailyAvailable) * 100 : 0;
@@ -693,21 +703,44 @@ function UserOrders() {
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{product.createdAt}</td>
                           <td className="px-4 py-3 text-sm">
                             <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleAddToContinuousOrder(product)}
-                                disabled={sortedAssigned.some((p) => p.id === product.id)}
-                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-                              >
-                                Add to Continuous Order
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleReplaceNextOrder(product)}
-                                className="px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors font-medium"
-                              >
-                                Replace Next Order
-                              </button>
+                              {(() => {
+                                const addDisabled = journeyCompleted || sortedAssigned.some((p) => p.id === product.id) || product.reviewStatus === 'COMPLETED';
+                                const addTitle = addDisabled
+                                  ? journeyCompleted
+                                    ? 'Journey completed — editing disabled.'
+                                    : product.reviewStatus === 'COMPLETED'
+                                      ? 'This product is already completed for this user.'
+                                      : 'Already in continuous order.'
+                                  : 'Add this product to the user’s continuous order.';
+                                const replaceDisabled = journeyCompleted || product.reviewStatus === 'COMPLETED';
+                                const replaceTitle = replaceDisabled
+                                  ? journeyCompleted
+                                    ? 'Journey completed — editing disabled.'
+                                    : 'This product is already completed for this user.'
+                                  : 'Replace the next order slot with this product.';
+                                return (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddToContinuousOrder(product)}
+                                      disabled={addDisabled}
+                                      title={addTitle}
+                                      className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                                    >
+                                      Add to Continuous Order
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleReplaceNextOrder(product)}
+                                      disabled={replaceDisabled}
+                                      title={replaceTitle}
+                                      className="px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+                                    >
+                                      Replace Next Order
+                                    </button>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>

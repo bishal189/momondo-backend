@@ -704,19 +704,15 @@ function UserOrders() {
                           <td className="px-4 py-3 text-sm">
                             <div className="flex flex-wrap gap-2">
                               {(() => {
-                                const addDisabled = journeyCompleted || sortedAssigned.some((p) => p.id === product.id) || product.reviewStatus === 'COMPLETED';
+                                const addDisabled = journeyCompleted || sortedAssigned.some((p) => p.id === product.id);
                                 const addTitle = addDisabled
                                   ? journeyCompleted
                                     ? 'Journey completed — editing disabled.'
-                                    : product.reviewStatus === 'COMPLETED'
-                                      ? 'This product is already completed for this user.'
-                                      : 'Already in continuous order.'
+                                    : 'Already in continuous order.'
                                   : 'Add this product to the user’s continuous order.';
-                                const replaceDisabled = journeyCompleted || product.reviewStatus === 'COMPLETED';
+                                const replaceDisabled = journeyCompleted;
                                 const replaceTitle = replaceDisabled
-                                  ? journeyCompleted
-                                    ? 'Journey completed — editing disabled.'
-                                    : 'This product is already completed for this user.'
+                                  ? 'Journey completed — editing disabled.'
                                   : 'Replace the next order slot with this product.';
                                 return (
                                   <>

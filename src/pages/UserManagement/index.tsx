@@ -45,7 +45,7 @@ export default function UserManagement() {
 
   const [selectedUserForDebit, setSelectedUserForDebit] = useState<User | null>(null);
   const [debitFormData, setDebitFormData] = useState<DebitFormData>({
-    memberAccount: '', type: '', amount: '', remarkType: 'DEPOSIT', remark: '',
+    memberAccount: '', type: 'Credit', amount: '', remarkType: 'DEPOSIT', remark: '',
   });
   const [debitLoading, setDebitLoading] = useState(false);
   const [debitError, setDebitError] = useState('');
@@ -266,13 +266,13 @@ export default function UserManagement() {
 
   const handleOpenDebitModal = (user: User) => {
     setSelectedUserForDebit(user);
-    setDebitFormData({ memberAccount: `${user.username} (ID: ${user.id})`, type: '', amount: '', remarkType: 'DEPOSIT', remark: '' });
+    setDebitFormData({ memberAccount: `${user.username} (ID: ${user.id})`, type: 'Credit', amount: '', remarkType: 'DEPOSIT', remark: '' });
     setDebitError('');
   };
 
   const handleCloseDebitModal = () => {
     setSelectedUserForDebit(null);
-    setDebitFormData({ memberAccount: '', type: '', amount: '', remarkType: 'DEPOSIT', remark: '' });
+    setDebitFormData({ memberAccount: '', type: 'Credit', amount: '', remarkType: 'DEPOSIT', remark: '' });
     setDebitError('');
   };
 

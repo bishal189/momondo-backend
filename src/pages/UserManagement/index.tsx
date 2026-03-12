@@ -441,6 +441,12 @@ export default function UserManagement() {
     }
   };
 
+  const toExactNumberString = (val: number | string | null | undefined, fallback = ''): string => {
+    if (val === null || val === undefined || val === '') return fallback;
+    const n = Number(val);
+    return Number.isNaN(n) ? String(val) : n.toString();
+  };
+
   const mapUserEditToFormData = (data: UserEditUser, fallback: User): EditUserFormData => ({
     ...getDefaultEditFormData(),
     username: data.username ?? fallback.username ?? '',
@@ -448,23 +454,23 @@ export default function UserManagement() {
     phone_number: data.phone_number ?? fallback.phone_number ?? '',
     level_id: data.level?.id != null ? String(data.level.id) : (fallback.level?.id?.toString() ?? ''),
     parent_id: data.parent_id != null ? String(data.parent_id) : (fallback.created_by?.toString() ?? ''),
-    balance: data.balance ?? (fallback.balance ?? ''),
-    today_commission: data.today_commission != null ? String(data.today_commission) : '',
-    freeze_amount: data.freeze_amount ?? (fallback.balance_frozen_amount ?? ''),
-    credibility: data.credibility != null ? String(data.credibility) : '',
-    withdrawal_min_amount: data.withdrawal_min_amount != null ? String(data.withdrawal_min_amount) : '',
-    withdrawal_max_amount: data.withdrawal_max_amount != null ? String(data.withdrawal_max_amount) : '',
-    withdrawal_needed_to_complete_order: data.withdrawal_needed_to_complete_order != null ? String(data.withdrawal_needed_to_complete_order) : '',
-    matching_range_min: data.matching_min_percent != null ? String(parseFloat(data.matching_min_percent)) : '30',
-    matching_range_max: data.matching_max_percent != null ? String(parseFloat(data.matching_max_percent)) : '70',
+    balance: toExactNumberString(data.balance ?? fallback.balance),
+    today_commission: toExactNumberString(data.today_commission),
+    freeze_amount: toExactNumberString(data.freeze_amount ?? fallback.balance_frozen_amount),
+    credibility: toExactNumberString(data.credibility),
+    withdrawal_min_amount: toExactNumberString(data.withdrawal_min_amount),
+    withdrawal_max_amount: toExactNumberString(data.withdrawal_max_amount),
+    withdrawal_needed_to_complete_order: toExactNumberString(data.withdrawal_needed_to_complete_order),
+    matching_range_min: data.matching_range_min != null ? toExactNumberString(data.matching_range_min, '30') : '30',
+    matching_range_max: data.matching_range_max != null ? toExactNumberString(data.matching_range_max, '70') : '70',
     password: '',
     confirm_password: '',
     payment_password: '',
     confirm_payment_password: '',
     allow_rob_order: data.allow_rob_order ?? false,
     allow_withdrawal: data.allow_withdrawal ?? true,
-    number_of_draws: data.number_of_draws != null ? String(data.number_of_draws) : '',
-    winning_amount: data.winning_amount != null ? String(data.winning_amount) : '',
+    number_of_draws: toExactNumberString(data.number_of_draws),
+    winning_amount: toExactNumberString(data.winning_amount),
     custom_winning_amount: data.custom_winning_amount ?? '',
   });
 

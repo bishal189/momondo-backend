@@ -50,8 +50,8 @@ export interface UserEditUser {
   withdrawal_min_amount?: number | null;
   withdrawal_max_amount?: number | null;
   withdrawal_needed_to_complete_order?: number | null;
-  matching_min_percent?: string | null;
-  matching_max_percent?: string | null;
+  matching_range_min?: number | null;
+  matching_range_max?: number | null;
   matching_range?: string | null;
   allow_rob_order?: boolean;
   allow_withdrawal?: boolean;

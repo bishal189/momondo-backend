@@ -129,6 +129,7 @@ function Sidebar() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [withdrawDepositCount, setWithdrawDepositCount] = useState(0);
   const prevCountRef = useRef(0);
+  const initializedRef = useRef(false);
   const fetchCountRef = useRef<() => void>(() => {});
 
   const playNotificationSound = () => {
@@ -142,16 +143,6 @@ function Sidebar() {
       playNotificationSound();
     }
     prevCountRef.current = withdrawDepositCount;
-  }, [withdrawDepositCount]);
-
-  useEffect(() => {
-    const onWindowOpen = () => {
-      if (document.visibilityState === 'visible' && withdrawDepositCount > 0) {
-        playNotificationSound();
-      }
-    };
-    document.addEventListener('visibilitychange', onWindowOpen);
-    return () => document.removeEventListener('visibilitychange', onWindowOpen);
   }, [withdrawDepositCount]);
 
   useEffect(() => {
@@ -177,7 +168,12 @@ function Sidebar() {
     const fetchWithdrawDepositCount = async () => {
       try {
         const res = await api.getNewWithdrawDepositCount();
-        setWithdrawDepositCount(res.count ?? 0);
+        const count = res.count ?? 0;
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          prevCountRef.current = count;
+        }
+        setWithdrawDepositCount(count);
       } catch {
         setWithdrawDepositCount(0);
       }

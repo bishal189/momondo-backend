@@ -1045,6 +1045,17 @@ export const api = {
     return response.json();
   },
 
+  async getNewWithdrawDepositCount(): Promise<{ count: number }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/transaction/new-withdraw-deposit-count/`, {
+      method: 'GET',
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch withdraw/deposit count');
+    }
+    return response.json();
+  },
+
   async approveTransaction(transactionId: number): Promise<any> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/transaction/${transactionId}/approve/`, {
       method: 'POST',

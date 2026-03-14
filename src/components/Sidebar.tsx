@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { ReactElement } from 'react';
 import toast from 'react-hot-toast';
@@ -126,6 +126,32 @@ function Sidebar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAgent, setIsAgent] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [withdrawDepositCount, setWithdrawDepositCount] = useState(0);
+  const prevCountRef = useRef(0);
+
+  const playNotificationSound = () => {
+    const audio = new Audio('/notification-sound-2.mp3');
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+  };
+
+  useEffect(() => {
+    if (withdrawDepositCount > 0 && prevCountRef.current === 0) {
+      playNotificationSound();
+    }
+    prevCountRef.current = withdrawDepositCount;
+  }, [withdrawDepositCount]);
+
+  useEffect(() => {
+    const onWindowOpen = () => {
+      if (document.visibilityState === 'visible' && withdrawDepositCount > 0) {
+        playNotificationSound();
+      }
+    };
+    document.addEventListener('visibilitychange', onWindowOpen);
+    return () => document.removeEventListener('visibilitychange', onWindowOpen);
+  }, [withdrawDepositCount]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -147,8 +173,26 @@ function Sidebar() {
       }
     };
 
+    const fetchWithdrawDepositCount = async () => {
+      try {
+        const res = await api.getNewWithdrawDepositCount();
+        setWithdrawDepositCount(res.count ?? 0);
+      } catch {
+        setWithdrawDepositCount(0);
+      }
+    };
+
     fetchUserProfile();
     fetchUserRole();
+    fetchWithdrawDepositCount();
+
+    const POLL_INTERVAL_MS = 30_000;
+    const pollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchWithdrawDepositCount();
+      }
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(pollTimer);
   }, []);
 
   const toggleExpand = (itemId: string) => {
@@ -248,6 +292,27 @@ function Sidebar() {
             </span>
           </div>
         </div>
+      </div>
+
+      <div className="px-4 py-2 border-b border-gray-800">
+        <button
+          type="button"
+          onClick={() => setNotificationsOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-gray-800 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span className="text-sm font-medium text-white">Withdraw / Deposit</span>
+          </div>
+          <span className="text-xs font-semibold bg-red-600 text-white px-1.5 py-0.5 rounded">
+            {withdrawDepositCount}
+          </span>
+        </button>
+        {notificationsOpen && (
+          <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto" />
+        )}
       </div>
 
       <nav className="flex-1 p-2">

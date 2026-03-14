@@ -163,6 +163,7 @@ function Transactions() {
       toast.success('Transaction approved successfully.');
       setSelectedForApprove(null);
       await fetchTransactions();
+      window.dispatchEvent(new Event('refetch-withdraw-deposit-count'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to approve transaction';
       setModalError(msg);
@@ -180,6 +181,7 @@ function Transactions() {
       toast.success('Transaction rejected.');
       setSelectedForReject(null);
       await fetchTransactions();
+      window.dispatchEvent(new Event('refetch-withdraw-deposit-count'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to reject transaction';
       setModalError(msg);

@@ -301,6 +301,7 @@ export default function UserManagement() {
       toast.success('Balance updated successfully.');
       handleCloseDebitModal();
       await fetchUsers();
+      window.dispatchEvent(new Event('refetch-withdraw-deposit-count'));
     } catch (err: any) {
       setDebitError(err.errors ? Object.entries(err.errors).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n') : (err.message || 'Failed to add balance'));
     } finally {

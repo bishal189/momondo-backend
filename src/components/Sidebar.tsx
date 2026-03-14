@@ -129,6 +129,7 @@ function Sidebar() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [withdrawDepositCount, setWithdrawDepositCount] = useState(0);
   const prevCountRef = useRef(0);
+  const fetchCountRef = useRef<() => void>(() => {});
 
   const playNotificationSound = () => {
     const audio = new Audio('/notification-sound-2.mp3');
@@ -137,7 +138,7 @@ function Sidebar() {
   };
 
   useEffect(() => {
-    if (withdrawDepositCount > 0 && prevCountRef.current === 0) {
+    if (withdrawDepositCount > prevCountRef.current) {
       playNotificationSound();
     }
     prevCountRef.current = withdrawDepositCount;
@@ -181,18 +182,25 @@ function Sidebar() {
         setWithdrawDepositCount(0);
       }
     };
+    fetchCountRef.current = fetchWithdrawDepositCount;
 
     fetchUserProfile();
     fetchUserRole();
     fetchWithdrawDepositCount();
 
-    const POLL_INTERVAL_MS = 30_000;
+    const POLL_INTERVAL_MS = 1_000;
     const pollTimer = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchWithdrawDepositCount();
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(pollTimer);
+  }, []);
+
+  useEffect(() => {
+    const onRefetch = () => fetchCountRef.current();
+    window.addEventListener('refetch-withdraw-deposit-count', onRefetch);
+    return () => window.removeEventListener('refetch-withdraw-deposit-count', onRefetch);
   }, []);
 
   const toggleExpand = (itemId: string) => {

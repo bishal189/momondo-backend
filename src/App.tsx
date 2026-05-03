@@ -13,6 +13,7 @@ import Agents from './pages/Agents';
 import UserManagement from './pages/UserManagement';
 import Transactions from './pages/Transactions';
 import UserOrders from './pages/UserOrders';
+import WhatsApp from './pages/WhatsApp';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="login-activities" element={<LoginActivities />} />
           <Route path="levels" element={<Levels />} />
           <Route path="products" element={<Products />} />
+          <Route path="whatsapp" element={<WhatsApp />} />
           <Route path="agents" element={<Agents />} />
           <Route path="user-management" element={<UserManagement />} />
           <Route path="user-management/:userId/orders" element={<UserOrders />} />

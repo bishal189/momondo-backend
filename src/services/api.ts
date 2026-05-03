@@ -36,6 +36,11 @@ export interface UserProfile {
   is_active: boolean;
 }
 
+export interface ContactResponse {
+  phone_number: string;
+  updated_at: string | null;
+}
+
 export interface UserEditUser {
   id: number;
   username: string;
@@ -1052,6 +1057,30 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.detail || 'Failed to fetch withdraw/deposit count');
+    }
+    return response.json();
+  },
+
+  async getContact(): Promise<ContactResponse> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/contact/`, { method: 'GET' });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to fetch contact');
+    }
+    return response.json();
+  },
+
+  async updateContact(phone_number: string): Promise<ContactResponse> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/contact/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || errorData.detail || 'Failed to update contact');
+      (error as any).errors = errorData;
+      throw error;
     }
     return response.json();
   },

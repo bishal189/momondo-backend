@@ -61,7 +61,7 @@ export function AgentDeleteConfirmModal({ agent, loading, error, onConfirm, onCl
                   Deleting...
                 </>
               ) : (
-                'Yes, Delete Agent'
+                'Yes, Delete Agents'
               )}
             </button>
           </div>

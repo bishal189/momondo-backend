@@ -190,13 +190,13 @@ function Sidebar() {
     fetchUserRole();
     fetchWithdrawDepositCount();
 
-    const POLL_INTERVAL_MS = 1_000;
-    const pollTimer = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchWithdrawDepositCount();
-      }
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(pollTimer);
+    // const POLL_INTERVAL_MS = 1_000;
+    // const pollTimer = setInterval(() => {
+    //   if (document.visibilityState === 'visible') {
+    //     fetchWithdrawDepositCount();
+    //   }
+    // }, POLL_INTERVAL_MS);
+    // return () => clearInterval(pollTimer);
   }, []);
 
   useEffect(() => {
@@ -247,8 +247,7 @@ function Sidebar() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         toast.success('Refer code copied!');
-      } catch (err) {
-        console.error('Failed to copy invitation code:', err);
+      } catch {
         toast.error('Failed to copy');
       }
     }

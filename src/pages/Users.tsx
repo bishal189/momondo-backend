@@ -172,13 +172,6 @@ function Users() {
 
   const handleSubmitDebit = () => {
     if (!selectedUserForDebit) return;
-
-    console.log('Debit/Credit Transaction:', {
-      userId: selectedUserForDebit.id,
-      username: selectedUserForDebit.username,
-      ...debitFormData,
-    });
-
     handleCloseDebitModal();
   };
 
@@ -211,7 +204,6 @@ function Users() {
 
     setUsers(updatedUsers);
     handleCloseResetModal();
-    console.log('Quantity reset for user:', userToReset.username);
   };
 
   const getStatusBadge = (status: string) => {
@@ -312,7 +304,6 @@ function Users() {
 
     setUsers([...users, newUser]);
     handleCloseAddModal();
-    console.log('New user created:', newUser);
   };
 
   const handleAddInputChange = (field: keyof User, value: string | number | boolean) => {

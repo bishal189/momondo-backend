@@ -1004,6 +1004,23 @@ export const api = {
     return response.json();
   },
 
+  async replaceNextOrder(userId: number, productId: number): Promise<{ message?: string }> {
+    const response = await fetchWithAuth(
+      `${API_BASE_URL}/api/product/admin/user/${userId}/product/${productId}/replace-next/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to replace next order');
+    }
+
+    return response.json();
+  },
+
   async addBalance(transactionData: {
     member_account: number;
     type: 'CREDIT' | 'DEBIT';
@@ -1038,12 +1055,6 @@ export const api = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Transaction API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData,
-        url,
-      });
       throw new Error(errorData.message || errorData.detail || `Failed to fetch transactions (${response.status})`);
     }
 

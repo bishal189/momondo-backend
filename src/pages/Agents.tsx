@@ -99,7 +99,6 @@ function Agents() {
       setAgents(convertedAgents);
     } catch (err) {
       setListError(err instanceof Error ? err.message : 'Failed to fetch agents');
-      console.error('Error fetching agents:', err);
     } finally {
       setLoading(false);
     }

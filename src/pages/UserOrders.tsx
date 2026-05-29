@@ -106,6 +106,7 @@ function UserOrders() {
   const [pendingRemoves, setPendingRemoves] = useState<number[]>([]);
   const [pendingPositionUpdates, setPendingPositionUpdates] = useState<Record<number, number>>({});
   const [overviewUpdateLoading, setOverviewUpdateLoading] = useState(false);
+  const [replaceLoadingId, setReplaceLoadingId] = useState<number | null>(null);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
 
   useEffect(() => {
@@ -226,46 +227,27 @@ function UserOrders() {
     }
   };
 
-  const handleReplaceNextOrder = (product: Product) => {
-    const start = parseInt(startContinuousAfter, 10) || 0;
-    const nextPos = start + 1;
-    const maxVal = orderOverview?.max_orders_by_level ?? Infinity;
-    if (nextPos > maxVal) {
-      toast.error('Next position exceeds maximum orders by level.');
+  const handleReplaceNextOrder = async (product: Product) => {
+    if (!userId) return;
+    const savedCount = orderOverview?.assigned_products?.length ?? 0;
+    if (savedCount === 0) {
+      toast.error('No continuous orders to replace. Add products first.');
       return;
     }
-    const merged = [...assignedFiltered, ...pendingAssignedProducts];
-    const withEffectivePos = merged.map((p) => ({ ...p, effectivePosition: pendingPositionUpdates[p.id] ?? p.position }));
-    const sortedList = [...withEffectivePos].sort((a, b) => a.effectivePosition - b.effectivePosition);
-    const itemAtNext = sortedList.find((p) => p.effectivePosition === nextPos);
-    if (!itemAtNext) {
-      setPendingAssignedProducts((prev) => {
-        const withoutThis = prev.filter((p) => p.id !== product.id);
-        return [...withoutThis, { id: product.id, title: product.title, position: nextPos, price: product.price }];
-      });
-      return;
+    setReplaceLoadingId(product.id);
+    try {
+      const res = await api.replaceNextOrder(parseInt(userId, 10), product.id);
+      toast.success(res.message || 'Item has been replaced.');
+      setPendingAssignedProducts([]);
+      setPendingRemoves([]);
+      setPendingPositionUpdates({});
+      await fetchOrderOverview(true);
+      await fetchProducts(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to replace next order');
+    } finally {
+      setReplaceLoadingId(null);
     }
-    const isFromServer = assignedFiltered.some((p) => p.id === itemAtNext.id);
-    if (isFromServer) {
-      setPendingRemoves((prev) => (prev.includes(itemAtNext.id) ? prev : [...prev, itemAtNext.id]));
-    }
-    const shifting = sortedList.filter((p) => p.effectivePosition > nextPos);
-    setPendingPositionUpdates((prev) => {
-      const next: Record<number, number> = { ...prev };
-      shifting.forEach((p) => {
-        next[p.id] = p.effectivePosition - 1;
-      });
-      return next;
-    });
-    const newLastPosition = start + sortedList.length;
-    setPendingAssignedProducts((prev) => {
-      const removeIds = new Set([product.id]);
-      if (!isFromServer) removeIds.add(itemAtNext.id);
-      return [
-        ...prev.filter((p) => !removeIds.has(p.id)),
-        { id: product.id, title: product.title, position: newLastPosition, price: product.price },
-      ];
-    });
   };
 
   const handleSaveOk = async () => {
@@ -710,10 +692,15 @@ function UserOrders() {
                                     ? 'Journey completed — editing disabled.'
                                     : 'Already in continuous order.'
                                   : 'Add this product to the user’s continuous order.';
-                                const replaceDisabled = journeyCompleted;
+                                const replaceDisabled =
+                                  journeyCompleted || replaceLoadingId !== null || (orderOverview?.assigned_products?.length ?? 0) === 0;
                                 const replaceTitle = replaceDisabled
-                                  ? 'Journey completed — editing disabled.'
-                                  : 'Replace the next order slot with this product.';
+                                  ? journeyCompleted
+                                    ? 'Journey completed — editing disabled.'
+                                    : (orderOverview?.assigned_products?.length ?? 0) === 0
+                                      ? 'Add continuous orders before replacing.'
+                                      : 'Replacing…'
+                                  : 'Replace the first upcoming order with this product.';
                                 return (
                                   <>
                                     <button
@@ -732,7 +719,7 @@ function UserOrders() {
                                       title={replaceTitle}
                                       className="px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
                                     >
-                                      Replace Next Order
+                                      {replaceLoadingId === product.id ? 'Replacing…' : 'Replace Next Order'}
                                     </button>
                                   </>
                                 );

@@ -2,6 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
+import {
+  getNextAddPosition,
+  getUpcomingAddPositions,
+  parseStartContinuousAfter,
+} from '../utils/continuousOrderPositions';
 
 const ITEMS_PER_PAGE = 10;
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/150?text=No+Image';
@@ -129,7 +134,7 @@ function UserOrders() {
     return () => clearInterval(interval);
   }, [userId]);
 
-  const fetchOrderOverview = async (silent = false) => {
+  const fetchOrderOverview = async (silent = false, force = false) => {
     if (!userId) return;
     if (!silent) {
       setOverviewLoading(true);
@@ -137,19 +142,25 @@ function UserOrders() {
     }
     try {
       const data = await api.getUserOrderOverview(parseInt(userId, 10));
+      if (force) {
+        setOrderOverview(data as OrderOverview);
+        return;
+      }
       setOrderOverview((prev) => {
         if (!prev) return data as OrderOverview;
+        const prevAssigned = prev.assigned_products ?? [];
+        const nextAssigned = data.assigned_products ?? [];
+        const assignedUnchanged =
+          prevAssigned.length === nextAssigned.length &&
+          prevAssigned.every((p) =>
+            nextAssigned.some((q) => q.id === p.id && q.position === p.position && q.price === p.price)
+          );
         if (
           prev.orders_received_today === data.orders_received_today &&
           prev.current_orders_made === data.current_orders_made &&
           prev.daily_available_orders === data.daily_available_orders &&
-          prev.assigned_products?.length === data.assigned_products?.length &&
-          (data.assigned_products ?? []).every(
-            (p, i) =>
-              prev.assigned_products?.[i]?.id === p.id &&
-              prev.assigned_products?.[i]?.position === p.position &&
-              prev.assigned_products?.[i]?.price === p.price
-          )
+          prev.start_continuous_orders_after === data.start_continuous_orders_after &&
+          assignedUnchanged
         ) {
           return prev;
         }
@@ -190,22 +201,18 @@ function UserOrders() {
 
   const handleAddToContinuousOrder = async (product: Product) => {
     if (!userId) return;
+    const start = parseStartContinuousAfter(startContinuousAfter);
     const assigned = orderOverview?.assigned_products ?? [];
-    if (assigned.some((p) => p.id === product.id)) {
-      toast.error('Product already in continuous orders.');
-      return;
-    }
-    const start = parseInt(startContinuousAfter, 10) || 0;
-    const nextPosition = start + 1 + assigned.length;
-    const maxVal = orderOverview?.max_orders_by_level ?? Infinity;
-    if (nextPosition > maxVal) {
-      toast.error('Cannot add more: next position would exceed maximum orders by level.');
+    const maxVal = orderOverview?.max_orders_by_level ?? 0;
+    const position = getNextAddPosition(start, assigned, maxVal);
+    if (position == null) {
+      toast.error('No free position up to the level maximum.');
       return;
     }
     try {
-      const res = await api.addProductToUser(parseInt(userId, 10), product.id);
+      const res = await api.addProductToUser(parseInt(userId, 10), product.id, position);
       toast.success(res.message || 'Product added to continuous order.');
-      await fetchOrderOverview(true);
+      await fetchOrderOverview(true, true);
       await fetchProducts(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add product');
@@ -217,7 +224,7 @@ function UserOrders() {
     try {
       await api.removeProductFromUser(parseInt(userId, 10), p.id);
       toast.success('Product removed.');
-      await fetchOrderOverview(true);
+      await fetchOrderOverview(true, true);
       await fetchProducts(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to remove product');
@@ -235,7 +242,7 @@ function UserOrders() {
     try {
       const res = await api.replaceNextOrder(parseInt(userId, 10), product.id);
       toast.success(res.message || 'Item has been replaced.');
-      await fetchOrderOverview(true);
+      await fetchOrderOverview(true, true);
       await fetchProducts(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to replace next order');
@@ -248,7 +255,7 @@ function UserOrders() {
     if (!userId || orderOverview == null) return;
     setOverviewUpdateLoading(true);
     try {
-      const num = parseInt(startContinuousAfter, 10);
+      const num = parseStartContinuousAfter(startContinuousAfter);
       const maxVal = orderOverview.max_orders_by_level ?? Infinity;
       if (Number.isNaN(num) || num < 0) {
         toast.error('Enter a valid number (0 or greater).');
@@ -266,7 +273,7 @@ function UserOrders() {
         assigned_products,
       });
       toast.success('Journey has been set');
-      await fetchOrderOverview(true);
+      await fetchOrderOverview(true, true);
       await fetchProducts(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
@@ -282,7 +289,7 @@ function UserOrders() {
     try {
       await api.resetUserContinuousOrders(parseInt(userId, 10));
       toast.success('Continuous orders reset.');
-      await fetchOrderOverview(true);
+      await fetchOrderOverview(true, true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to reset continuous orders');
     } finally {
@@ -306,15 +313,15 @@ function UserOrders() {
     () => [...assignedProducts].sort((a, b) => a.position - b.position),
     [assignedProducts]
   );
-  const nextPositions = useMemo(() => {
-    const start = parseInt(startContinuousAfter, 10) || 0;
-    const maxVal = orderOverview?.max_orders_by_level ?? 30;
-    const positions: number[] = [];
-    for (let i = 1; i <= Math.min(5, Math.max(0, maxVal - start)); i++) {
-      positions.push(start + i);
-    }
-    return positions;
-  }, [startContinuousAfter, orderOverview?.max_orders_by_level]);
+  const continuousStart = parseStartContinuousAfter(startContinuousAfter);
+  const nextAddPosition = useMemo(
+    () => getNextAddPosition(continuousStart, assignedProducts, maxOrdersByLevel || 0),
+    [continuousStart, assignedProducts, maxOrdersByLevel]
+  );
+  const nextPositions = useMemo(
+    () => getUpcomingAddPositions(continuousStart, assignedProducts, maxOrdersByLevel || 30, 5),
+    [continuousStart, assignedProducts, maxOrdersByLevel]
+  );
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
 
   const clampStartInput = (v: string) => {
@@ -394,9 +401,12 @@ function UserOrders() {
                       disabled={journeyCompleted}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                     />
-                    {nextPositions.length > 0 && (
+                    {nextAddPosition != null && (
                       <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        Next product positions: {nextPositions.join(', ')}{nextPositions.length >= 5 ? '…' : ''}
+                        Next add: position {nextAddPosition}
+                        {nextPositions.length > 1
+                          ? `, then ${nextPositions.slice(1).join(', ')}${nextPositions.length >= 5 ? '…' : ''}`
+                          : ''}
                       </p>
                     )}
                   </div>
@@ -665,12 +675,10 @@ function UserOrders() {
                           <td className="px-4 py-3 text-sm">
                             <div className="flex flex-wrap gap-2">
                               {(() => {
-                                const addDisabled = journeyCompleted || sortedAssigned.some((p) => p.id === product.id);
+                                const addDisabled = journeyCompleted;
                                 const addTitle = addDisabled
-                                  ? journeyCompleted
-                                    ? 'Journey completed — editing disabled.'
-                                    : 'Already in continuous order.'
-                                  : 'Add this product to the user’s continuous order.';
+                                  ? 'Journey completed — editing disabled.'
+                                  : `Add at position ${nextAddPosition ?? continuousStart + 1}.`;
                                 const replaceDisabled =
                                   journeyCompleted || replaceLoadingId !== null || (orderOverview?.assigned_products?.length ?? 0) === 0;
                                 const replaceTitle = replaceDisabled

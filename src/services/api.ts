@@ -972,17 +972,28 @@ export const api = {
     return response.json();
   },
 
-  async addProductToUser(userId: number, productId: number): Promise<any> {
+  async addProductToUser(userId: number, productId: number, position: number): Promise<any> {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/product/admin/user/${userId}/product/${productId}/add/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ position }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.detail || 'Failed to add product to user');
+      const detail =
+        typeof errorData.detail === 'string'
+          ? errorData.detail
+          : Array.isArray(errorData.detail)
+            ? errorData.detail.join(', ')
+            : typeof errorData.position === 'string'
+              ? errorData.position
+              : Array.isArray(errorData.position)
+                ? errorData.position.join(', ')
+                : undefined;
+      throw new Error(errorData.message || detail || 'Failed to add product to user');
     }
 
     return response.json();

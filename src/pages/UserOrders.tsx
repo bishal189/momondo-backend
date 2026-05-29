@@ -102,8 +102,6 @@ function UserOrders() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState('');
   const [startContinuousAfter, setStartContinuousAfter] = useState('0');
-  const [pendingAssignedProducts, setPendingAssignedProducts] = useState<AssignedProduct[]>([]);
-  const [pendingPositionUpdates, setPendingPositionUpdates] = useState<Record<number, number>>({});
   const [overviewUpdateLoading, setOverviewUpdateLoading] = useState(false);
   const [replaceLoadingId, setReplaceLoadingId] = useState<number | null>(null);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
@@ -112,15 +110,6 @@ function UserOrders() {
     const v = orderOverview?.start_continuous_orders_after;
     if (v != null) setStartContinuousAfter(String(v));
   }, [orderOverview?.start_continuous_orders_after]);
-
-  useEffect(() => {
-    setPendingPositionUpdates({});
-    if (pendingAssignedProducts.length === 0) return;
-    const start = parseInt(startContinuousAfter, 10) || 0;
-    setPendingAssignedProducts((prev) =>
-      prev.map((p, i) => ({ ...p, position: start + 1 + i }))
-    );
-  }, [startContinuousAfter]);
 
   useEffect(() => {
     if (userId) fetchOrderOverview();
@@ -199,37 +188,39 @@ function UserOrders() {
     }
   };
 
-  const handleAddToContinuousOrder = (product: Product) => {
+  const handleAddToContinuousOrder = async (product: Product) => {
+    if (!userId) return;
     const assigned = orderOverview?.assigned_products ?? [];
+    if (assigned.some((p) => p.id === product.id)) {
+      toast.error('Product already in continuous orders.');
+      return;
+    }
     const start = parseInt(startContinuousAfter, 10) || 0;
-    const nextPosition = start + 1 + assigned.length + pendingAssignedProducts.length;
+    const nextPosition = start + 1 + assigned.length;
     const maxVal = orderOverview?.max_orders_by_level ?? Infinity;
     if (nextPosition > maxVal) {
       toast.error('Cannot add more: next position would exceed maximum orders by level.');
       return;
     }
-    if (pendingAssignedProducts.some((p) => p.id === product.id) || assigned.some((p) => p.id === product.id)) {
-      toast.error('Product already in continuous orders.');
-      return;
+    try {
+      const res = await api.addProductToUser(parseInt(userId, 10), product.id);
+      toast.success(res.message || 'Product added to continuous order.');
+      await fetchOrderOverview(true);
+      await fetchProducts(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add product');
     }
-    setPendingAssignedProducts((prev) => [
-      ...prev,
-      { id: product.id, title: product.title, position: nextPosition, price: product.price },
-    ]);
   };
 
   const handleRemoveFromList = async (p: AssignedProduct) => {
     if (!userId) return;
     try {
-      if (pendingAssignedProducts.some((x) => x.id === p.id)) {
-        setPendingAssignedProducts((prev) => prev.filter((x) => x.id !== p.id));
-      } else {
-        await api.removeProductFromUser(parseInt(userId, 10), p.id);
-        await fetchOrderOverview(true);
-      }
+      await api.removeProductFromUser(parseInt(userId, 10), p.id);
       toast.success('Product removed.');
-    } catch {
-      toast.error('Failed to remove product');
+      await fetchOrderOverview(true);
+      await fetchProducts(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove product');
     }
   };
 
@@ -244,8 +235,6 @@ function UserOrders() {
     try {
       const res = await api.replaceNextOrder(parseInt(userId, 10), product.id);
       toast.success(res.message || 'Item has been replaced.');
-      setPendingAssignedProducts([]);
-      setPendingPositionUpdates({});
       await fetchOrderOverview(true);
       await fetchProducts(true);
     } catch (err) {
@@ -269,17 +258,14 @@ function UserOrders() {
         toast.error('Cannot be greater than Maximum orders received by level (' + maxVal + ').');
         return;
       }
-      const merged = [...(orderOverview.assigned_products ?? []), ...pendingAssignedProducts]
-        .map((p) => ({ ...p, position: pendingPositionUpdates[p.id] ?? p.position }))
+      const assigned_products = (orderOverview.assigned_products ?? [])
+        .map((p) => ({ product_id: p.id, position: p.position }))
         .sort((a, b) => a.position - b.position);
-      const assigned_products = merged.map((p) => ({ product_id: p.id, position: p.position }));
       await api.updateUserOrderOverview(parseInt(userId, 10), {
         start_continuous_orders_after: num,
         assigned_products,
       });
       toast.success('Journey has been set');
-      setPendingAssignedProducts([]);
-      setPendingPositionUpdates({});
       await fetchOrderOverview(true);
       await fetchProducts(true);
     } catch (err) {
@@ -295,8 +281,6 @@ function UserOrders() {
     setOverviewUpdateLoading(true);
     try {
       await api.resetUserContinuousOrders(parseInt(userId, 10));
-      setPendingAssignedProducts([]);
-      setPendingPositionUpdates({});
       toast.success('Continuous orders reset.');
       await fetchOrderOverview(true);
     } catch (err) {
@@ -318,13 +302,10 @@ function UserOrders() {
   const todayOrders = orderOverview?.orders_received_today ?? 0;
   const assignedProducts = orderOverview?.assigned_products ?? [];
   const journeyCompleted = maxOrdersByLevel > 0 && currentOrdersMade >= maxOrdersByLevel;
-  const sortedAssigned = useMemo(() => {
-    const merged = [...assignedProducts, ...pendingAssignedProducts].map((p) => ({
-      ...p,
-      position: pendingPositionUpdates[p.id] ?? p.position,
-    }));
-    return merged.sort((a, b) => a.position - b.position);
-  }, [assignedProducts, pendingAssignedProducts, pendingPositionUpdates]);
+  const sortedAssigned = useMemo(
+    () => [...assignedProducts].sort((a, b) => a.position - b.position),
+    [assignedProducts]
+  );
   const nextPositions = useMemo(() => {
     const start = parseInt(startContinuousAfter, 10) || 0;
     const maxVal = orderOverview?.max_orders_by_level ?? 30;

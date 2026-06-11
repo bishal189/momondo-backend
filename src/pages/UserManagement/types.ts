@@ -83,9 +83,9 @@ export interface EditUserFormData {
 }
 
 export interface WalletFormData {
+  accountHolderName: string;
   walletName: string;
   walletAddress: string;
   phoneNumber: string;
-  currency: string;
   networkType: string;
 }

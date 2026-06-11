@@ -109,15 +109,32 @@ export interface TransactionsResponse {
 }
 
 export interface PrimaryWalletPayload {
+  account_holder_name: string;
   wallet_name: string;
   wallet_address: string;
   phone_number: string;
-  currency: string;
   network_type: string;
+  currency?: string;
+}
+
+export interface PrimaryWalletDetail extends Omit<PrimaryWalletPayload, 'account_holder_name'> {
+  id?: number;
+  account_holder_name?: string;
+  crypto_wallet_address?: string;
+  crypto_network?: string;
+  crypto_wallet_name?: string;
+  user_phone_number?: string;
+  is_active?: boolean;
+  is_primary?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PrimaryWalletResponse {
-  wallet: PrimaryWalletPayload | null;
+  user_id?: number;
+  username?: string;
+  phone_number?: string;
+  wallet: PrimaryWalletDetail | null;
 }
 
 export interface AccountDetailsResponse {

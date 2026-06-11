@@ -1,4 +1,5 @@
 import type { User, WalletFormData } from '../types';
+import { WALLET_NETWORK_TYPES } from '../../../utils/primaryWallet';
 
 interface WalletModalProps {
   user: User;
@@ -52,14 +53,27 @@ export function WalletModal({
           </div>
         )}
 
-        <form onSubmit={onSubmit} className="p-6 space-y-5">
+        <form onSubmit={onSubmit} className="p-6 space-y-5 min-h-[420px] flex flex-col">
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+            <div className="flex flex-1 items-center justify-center text-gray-500 dark:text-gray-400">
               Loading wallet…
             </div>
           ) : (
             <>
           {/* Text fields - stacked */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Account Holder Name
+            </label>
+            <input
+              type="text"
+              name="accountHolderName"
+              value={formData.accountHolderName}
+              onChange={onChange}
+              placeholder="Please enter account holder name"
+              className={inputBase}
+            />
+          </div>
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Wallet Name
@@ -100,38 +114,10 @@ export function WalletModal({
             />
           </div>
 
-          {/* Currency - pill selection */}
-          <div className="space-y-2">
-            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">Currency</span>
-            <div className="flex flex-wrap gap-2">
-              {['USDT', 'USDC', 'ETH', 'BTC'].map((c) => (
-                <label
-                  key={c}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition-all ${
-                    formData.currency === c
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/30'
-                      : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="currency"
-                    value={c}
-                    checked={formData.currency === c}
-                    onChange={onChange}
-                    className="sr-only"
-                  />
-                  <span className="text-sm font-medium">{c}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Network Type - pill selection */}
           <div className="space-y-2">
             <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">Network Type</span>
             <div className="flex flex-wrap gap-2">
-              {['TRC 20', 'ERC 20', 'BTC'].map((n) => (
+              {WALLET_NETWORK_TYPES.map((n) => (
                 <label
                   key={n}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition-all ${
@@ -153,9 +139,10 @@ export function WalletModal({
               ))}
             </div>
           </div>
+            </>
+          )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex justify-end gap-3 pt-4 mt-auto border-t border-gray-100 dark:border-gray-700">
             <button
               type="button"
               onClick={onClose}
@@ -166,14 +153,12 @@ export function WalletModal({
             </button>
             <button
               type="submit"
-              disabled={submitLoading}
+              disabled={loading || submitLoading}
               className="px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors disabled:opacity-50"
             >
               {submitLoading ? 'Saving…' : 'Save'}
             </button>
           </div>
-            </>
-          )}
         </form>
       </div>
     </div>

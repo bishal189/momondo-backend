@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api, type Level, type AccountDetailsResponse, type UserEditUser } from '../../services/api';
+import { defaultWalletFormData, mapFormToPrimaryWalletPayload, mapPrimaryWalletToForm } from '../../utils/primaryWallet';
 import type { User, CreateTrainingFormData, DebitFormData, EditUserFormData, WalletFormData } from './types';
 import { formatDate, validateEmail, validatePhoneNumber, flattenUsersResponse } from './utils';
 import { ITEMS_PER_PAGE } from './constants';
@@ -94,9 +95,7 @@ export default function UserManagement() {
   const [accountDetails, setAccountDetails] = useState<AccountDetailsResponse | null>(null);
   const [accountDetailsLoading, setAccountDetailsLoading] = useState(false);
   const [accountDetailsError, setAccountDetailsError] = useState('');
-  const [walletFormData, setWalletFormData] = useState<WalletFormData>({
-    walletName: '', walletAddress: '', phoneNumber: '', currency: 'USDT', networkType: 'TRC 20',
-  });
+  const [walletFormData, setWalletFormData] = useState<WalletFormData>(defaultWalletFormData);
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletSubmitLoading, setWalletSubmitLoading] = useState(false);
   const [walletError, setWalletError] = useState('');
@@ -106,6 +105,7 @@ export default function UserManagement() {
   const moreMenuButtonRef = useRef<HTMLDivElement | null>(null);
   const moreMenuDropdownRef = useRef<HTMLDivElement | null>(null);
   const moreMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const walletLoadIdRef = useRef(0);
 
   const clearMoreMenuCloseTimer = () => {
     if (moreMenuCloseTimerRef.current) {
@@ -343,21 +343,39 @@ export default function UserManagement() {
   };
 
   const handleOpenWalletModal = (user: User) => {
-    setSelectedUserForWallet(user);
-    setWalletError('');
-    setWalletFormData({
-      walletName: '',
-      walletAddress: '',
-      phoneNumber: user.phone_number ?? '',
-      currency: 'USDT',
-      networkType: 'TRC 20',
-    });
+    const loadId = ++walletLoadIdRef.current;
     setMoreMenuUser(null);
+    setWalletError('');
+    setWalletSubmitLoading(false);
+    setWalletLoading(true);
+    setSelectedUserForWallet(user);
+    setWalletFormData({
+      ...defaultWalletFormData(),
+      phoneNumber: user.phone_number ?? '',
+    });
+    api
+      .getPrimaryWallet(user.id)
+      .then((res) => {
+        if (loadId !== walletLoadIdRef.current) return;
+        setWalletFormData(mapPrimaryWalletToForm(res.wallet, user.phone_number ?? ''));
+      })
+      .catch((err) => {
+        if (loadId !== walletLoadIdRef.current) return;
+        setWalletError(err instanceof Error ? err.message : 'Failed to load wallet');
+      })
+      .finally(() => {
+        if (loadId !== walletLoadIdRef.current) return;
+        setWalletLoading(false);
+      });
   };
 
   const handleCloseWalletModal = () => {
+    walletLoadIdRef.current += 1;
     setSelectedUserForWallet(null);
     setWalletError('');
+    setWalletLoading(false);
+    setWalletSubmitLoading(false);
+    setWalletFormData(defaultWalletFormData());
   };
 
   useEffect(() => {
@@ -385,35 +403,6 @@ export default function UserManagement() {
     };
   }, [selectedUserForAccountDetails]);
 
-  useEffect(() => {
-    if (!selectedUserForWallet) return;
-    let cancelled = false;
-    setWalletLoading(true);
-    setWalletError('');
-    api
-      .getPrimaryWallet(selectedUserForWallet.id)
-      .then((res) => {
-        if (cancelled) return;
-        const w = res.wallet;
-        setWalletFormData({
-          walletName: w?.wallet_name ?? '',
-          walletAddress: w?.wallet_address ?? '',
-          phoneNumber: w?.phone_number ?? selectedUserForWallet.phone_number ?? '',
-          currency: w?.currency ?? 'USDT',
-          networkType: w?.network_type ?? 'TRC 20',
-        });
-      })
-      .catch((err) => {
-        if (!cancelled) setWalletError(err instanceof Error ? err.message : 'Failed to load wallet');
-      })
-      .finally(() => {
-        if (!cancelled) setWalletLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedUserForWallet]);
-
   const handleWalletFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setWalletFormData((prev) => ({ ...prev, [name]: value }));
@@ -426,13 +415,10 @@ export default function UserManagement() {
     setWalletError('');
     setWalletSubmitLoading(true);
     try {
-      await api.updatePrimaryWallet(selectedUserForWallet.id, {
-        wallet_name: walletFormData.walletName.trim(),
-        wallet_address: walletFormData.walletAddress.trim(),
-        phone_number: walletFormData.phoneNumber.trim(),
-        currency: walletFormData.currency,
-        network_type: walletFormData.networkType,
-      });
+      await api.updatePrimaryWallet(
+        selectedUserForWallet.id,
+        mapFormToPrimaryWalletPayload(walletFormData)
+      );
       toast.success('Wallet information saved.');
       handleCloseWalletModal();
     } catch (err) {
